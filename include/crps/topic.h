@@ -6,9 +6,7 @@
 
 namespace crps {
 
-using TopicTypeId = uint32_t;
-
-// TODO(ahb)
+using TopicPriority = int8_t;
 
 }  // namespace crps
 

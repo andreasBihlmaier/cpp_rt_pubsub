@@ -3,17 +3,25 @@
 
 #include <string>
 
+#include "crps/message.h"
 #include "crps/topic.h"
 
 namespace crps {
 
+using SubscriberCallback = void (*)(void* p_message, MessageSize p_message_size, void* p_user_data);
+
 class Subscriber {
  private:
   std::string m_topic_name;
-  TopicTypeId m_topic_type_id;
+  MessageTypeId m_type_id;
+  MessageSize m_message_size;
+  SubscriberCallback m_callback;
+  void* m_callback_user_data;
 
  public:
-  explicit Subscriber(std::string p_topic_name, TopicTypeId p_topic_type_id);
+  explicit Subscriber(std::string p_topic_name, MessageTypeId p_type_id, MessageSize p_message_size,
+                      SubscriberCallback p_callback, void* p_callback_user_data = nullptr);
+  bool connect();
 };
 
 }  // namespace crps

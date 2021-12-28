@@ -19,7 +19,7 @@ endif (NOT CMAKE_BUILD_TYPE)
 set(CMAKE_CXX_CLANG_TIDY
   clang-tidy;
   -header-filter=include;
-  -checks=*,-modernize-use-trailing-return-type;
+  -checks=*,-modernize-use-trailing-return-type,-fuchsia-default-arguments-calls,-fuchsia-default-arguments-declarations;
   -warnings-as-errors=*;)
 
 set(CMAKE_CXX_CPPCHECK

@@ -3,9 +3,19 @@
 
 #include <string>
 
+#include "crps/message.h"
+#include "crps/topic.h"
+
 namespace crps {
 
-// TODO(ahb)
+class Broker {
+ private:
+  std::string m_listen_address;
+
+ public:
+  explicit Broker(std::string p_listen_address);
+  void start();
+};
 
 }  // namespace crps
 
