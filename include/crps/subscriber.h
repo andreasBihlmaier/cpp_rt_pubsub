@@ -21,7 +21,6 @@ class Subscriber {
  public:
   explicit Subscriber(std::string p_topic_name, MessageTypeId p_type_id, MessageSize p_message_size,
                       SubscriberCallback p_callback, void* p_callback_user_data = nullptr);
-  bool connect();
 };
 
 }  // namespace crps

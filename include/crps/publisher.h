@@ -18,7 +18,7 @@ class Publisher {
  public:
   explicit Publisher(std::string p_topic_name, MessageTypeId p_type_id, MessageSize p_message_size,
                      TopicPriority p_topic_priority);
-  bool connect();
+  bool publish(void* data);
 };
 
 }  // namespace crps

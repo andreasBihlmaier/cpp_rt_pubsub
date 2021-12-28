@@ -6,7 +6,9 @@
 
 namespace crps {
 
-// TODO(ahb)
+class OS {
+  // TODO(ahb)
+};
 
 }  // namespace crps
 

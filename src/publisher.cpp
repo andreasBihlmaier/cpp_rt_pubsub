@@ -14,11 +14,10 @@ Publisher::Publisher(std::string p_topic_name, MessageTypeId p_type_id, MessageS
   (void)m_topic_priority;
 }
 
-bool Publisher::connect() {
-  (void)m_type_id;  // TODO(ahb) prevent readability-convert-member-functions-to-static -> remove
-
+bool Publisher::publish(void* data) {
   // TODO(ahb)
-
+  (void)data;
+  (void)m_topic_name;  // TODO(ahb) prevent readability-convert-member-functions-to-static -> remove
   return true;
 }
 

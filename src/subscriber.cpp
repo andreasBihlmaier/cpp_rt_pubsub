@@ -16,12 +16,4 @@ Subscriber::Subscriber(std::string p_topic_name, MessageTypeId p_type_id, Messag
   (void)m_callback_user_data;
 }
 
-bool Subscriber::connect() {
-  (void)m_type_id;  // TODO(ahb) prevent readability-convert-member-functions-to-static -> remove
-
-  // TODO(ahb)
-
-  return true;
-}
-
 }  // namespace crps

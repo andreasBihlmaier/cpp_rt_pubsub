@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(cpp_rt_pubsub)
 
-
-#find_package(Boost COMPONENTS program_options REQUIRED)
-
 set(CMAKE_C_FLAGS "-Wall -Wextra -Werror")
 set(CMAKE_C_STANDARD 99)
 
@@ -33,47 +30,48 @@ include_directories(
 #link_directories(
 #)
 
-add_library(cpp_rt_pubsub_broker SHARED
+add_library(crps_linux SHARED
+  src/linux_network.cpp
+)
+#target_link_libraries(crps_broker
+#)
+
+add_library(crps_broker SHARED
   src/broker.cpp
 )
-#target_link_libraries(cpp_rt_pubsub_broker
-#)
-
-add_library(cpp_rt_pubsub_publisher SHARED
-  src/publisher.cpp
+target_link_libraries(crps_broker
+  crps_linux
 )
-#target_link_libraries(cpp_rt_pubsub_publisher
-#)
 
-add_library(cpp_rt_pubsub_subscriber SHARED
+add_library(crps_node SHARED
+  src/node.cpp
+  src/publisher.cpp
   src/subscriber.cpp
 )
-#target_link_libraries(cpp_rt_pubsub_subscriber
-#)
+target_link_libraries(crps_node
+  crps_linux
+)
 
 
 add_executable(broker
   src/broker_main.cpp
 )
 target_link_libraries(broker
-  cpp_rt_pubsub_broker
-#  ${Boost_PROGRAM_OPTIONS_LIBRARY}
+  crps_broker
 )
 
 add_executable(demo_pub
   src/demo_pub_main.cpp
 )
 target_link_libraries(demo_pub
-  cpp_rt_pubsub_publisher
-#  ${Boost_PROGRAM_OPTIONS_LIBRARY}
+  crps_node
 )
 
 add_executable(demo_sub
   src/demo_sub_main.cpp
 )
 target_link_libraries(demo_sub
-  cpp_rt_pubsub_subscriber
-#  ${Boost_PROGRAM_OPTIONS_LIBRARY}
+  crps_node
 )
 
 
