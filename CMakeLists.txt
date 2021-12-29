@@ -30,16 +30,25 @@ include_directories(
 #link_directories(
 #)
 
+add_library(crps_common SHARED
+  src/os.cpp
+)
+#target_link_libraries(crps_common
+#)
+
 add_library(crps_linux SHARED
   src/linux_network.cpp
+  src/linux_os.cpp
 )
-#target_link_libraries(crps_broker
-#)
+target_link_libraries(crps_linux
+  crps_common
+)
 
 add_library(crps_broker SHARED
   src/broker.cpp
 )
 target_link_libraries(crps_broker
+  crps_common
   crps_linux
 )
 
@@ -49,6 +58,7 @@ add_library(crps_node SHARED
   src/subscriber.cpp
 )
 target_link_libraries(crps_node
+  crps_common
   crps_linux
 )
 

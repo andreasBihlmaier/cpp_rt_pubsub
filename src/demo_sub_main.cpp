@@ -16,13 +16,13 @@ int main(int argc, char* argv[]) {
   (void)argc;
   (void)argv;
 
-  const crps::MessageTypeId message_type_id = 23;
   const crps::MessageSize message_size = 10;
 
-  auto network = std::make_unique<crps::LinuxNetwork>();
+  auto os = std::make_unique<crps::LinuxOS>(true);
+  auto network = std::make_unique<crps::LinuxNetwork>(os.get());
 
-  auto node = std::make_unique<crps::Node>("test_sub", network.get());
-  auto* subscriber = node->create_subscriber("test", message_type_id, message_size, test_callback);
+  auto node = std::make_unique<crps::Node>("test_sub", "127.0.0.1", network.get());
+  auto* subscriber = node->create_subscriber("test_topic", "test_type", message_size, test_callback);
   if (!node->connect()) {
     std::cout << "Subscriber failed to connect. Exiting." << std::endl;
     return 1;

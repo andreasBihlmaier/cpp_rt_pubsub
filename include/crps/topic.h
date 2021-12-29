@@ -6,6 +6,7 @@
 
 namespace crps {
 
+using TopicId = uint32_t;
 using TopicPriority = int8_t;
 
 }  // namespace crps

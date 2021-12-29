@@ -2,6 +2,6 @@
 #define CRPS_LINUX_H
 
 #include "crps/linux_network.h"
-//#include "crps/linux_os.h"
+#include "crps/linux_os.h"
 
 #endif  // CRPS_LINUX_H

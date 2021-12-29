@@ -11,12 +11,14 @@ namespace crps {
 class Publisher {
  private:
   std::string m_topic_name;
-  MessageTypeId m_type_id;
+  std::string m_type_name;
   MessageSize m_message_size;
   TopicPriority m_topic_priority;
+  TopicId m_topic_id = 0;
+  MessageTypeId m_type_id = 0;
 
  public:
-  explicit Publisher(std::string p_topic_name, MessageTypeId p_type_id, MessageSize p_message_size,
+  explicit Publisher(std::string p_topic_name, std::string p_type_name, MessageSize p_message_size,
                      TopicPriority p_topic_priority);
   bool publish(void* data);
 };

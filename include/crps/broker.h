@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "crps/defaults.h"
 #include "crps/message.h"
 #include "crps/network.h"
 #include "crps/topic.h"
@@ -14,10 +15,14 @@ class Broker {
  private:
   std::string m_listen_address;
   Network* m_network;
+  Network::Protocol m_protocol;
+  int16_t m_port;
 
  public:
-  explicit Broker(std::string p_listen_address, Network* p_network);
-  void start();
+  explicit Broker(std::string p_listen_address, Network* p_network,
+                  Network::Protocol p_protocol = Network::Protocol::UDP, int16_t p_port = broker_default_port);
+  bool start();
+  void spin();
 };
 
 }  // namespace crps
