@@ -9,10 +9,6 @@ namespace crps {
 using WriteLogFunction = std::function<void(std::ostringstream& p_stream)>;
 
 class Logger {
- private:
-  std::ostringstream m_stream;
-  WriteLogFunction m_write_log;
-
  public:
   enum class LogLevel {
     Debug = 1,
@@ -48,6 +44,10 @@ class Logger {
   std::ostringstream& fatal() {
     return log(LogLevel::Fatal);
   }
+
+ private:
+  std::ostringstream m_stream;
+  WriteLogFunction m_write_log;
 };
 
 }  // namespace crps

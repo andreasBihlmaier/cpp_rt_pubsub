@@ -6,15 +6,15 @@
 namespace crps {
 
 class LinuxOS final : public OS {
- private:
-  bool m_flush;
+ public:
+  explicit LinuxOS(bool p_flush = false);
+  void write_log(std::ostringstream& p_stream) const;
 
  protected:
   WriteLogFunction get_write_log_function() override;
 
- public:
-  explicit LinuxOS(bool p_flush = false);
-  void write_log(std::ostringstream& p_stream) const;
+ private:
+  bool m_flush;
 };
 
 }  // namespace crps

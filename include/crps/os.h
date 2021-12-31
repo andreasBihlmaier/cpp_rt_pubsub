@@ -9,11 +9,11 @@
 namespace crps {
 
 class OS {
- protected:
-  virtual WriteLogFunction get_write_log_function() = 0;
-
  public:
   Logger logger();
+
+ protected:
+  virtual WriteLogFunction get_write_log_function() = 0;
 };
 
 }  // namespace crps

@@ -14,21 +14,21 @@
 namespace crps {
 
 class Broker {
+ public:
+  explicit Broker(std::string p_listen_address, OS* p_os, Network* p_network,
+                  Network::Protocol p_protocol = Network::Protocol::UDP, int16_t p_port = broker_default_port);
+  bool start();
+  void spin();
+
  private:
+  bool verify_and_update_client_counter(const std::string& client, BpCounterType counter);
+
   std::string m_listen_address;
   OS* m_os;
   Network* m_network;
   Network::Protocol m_protocol;
   int16_t m_port;
   std::unordered_map<std::string, BpCounterType> m_client_counters;
-
-  bool verify_and_update_client_counter(const std::string& client, BpCounterType counter);
-
- public:
-  explicit Broker(std::string p_listen_address, OS* p_os, Network* p_network,
-                  Network::Protocol p_protocol = Network::Protocol::UDP, int16_t p_port = broker_default_port);
-  bool start();
-  void spin();
 };
 
 }  // namespace crps
