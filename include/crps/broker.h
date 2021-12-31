@@ -20,6 +20,9 @@ class Broker {
   Network* m_network;
   Network::Protocol m_protocol;
   int16_t m_port;
+  std::unordered_map<std::string, BpCounterType> m_client_counters;
+
+  bool verify_and_update_client_counter(const std::string& client, BpCounterType counter);
 
  public:
   explicit Broker(std::string p_listen_address, OS* p_os, Network* p_network,

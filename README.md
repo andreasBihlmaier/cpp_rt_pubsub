@@ -18,6 +18,13 @@ Design
   * Data: Send/receive data to/from topic
     * Fixed size messages
 
+Limitations / Potential improvements
+------------------------------------
+* Implementation is rather a proof of concept than production-ready
+* Single-threaded
+* Single broker (instead of one broker per host to keep communication between nodes on same host local)
+* IPv4 only
+
 Notes
 -----
 * While the target platform is Linux, the code should be easy to port to other POSIX platforms by implementing interfaces in `os.h` and `network.h`
@@ -25,4 +32,7 @@ Notes
 
 TODOs
 -----
+* Tests
+* Documentation
+* Implement `Network::Protocol::TCP`
 * Handle wrap around of `BpHeader::counter`

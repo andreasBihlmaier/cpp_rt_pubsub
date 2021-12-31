@@ -110,7 +110,8 @@ bool LinuxNetwork::connect(const std::string& p_address, uint16_t p_port) {
   return true;
 }
 
-bool LinuxNetwork::write(void* p_data, size_t p_size) {
+bool LinuxNetwork::sendto(const std::string& p_address, void* p_data, size_t p_size) {
+  (void)p_address;  // TODO(ahb)
   ssize_t bytes_written = ::write(m_socket, p_data, p_size);
   if (bytes_written < 0) {
     m_os->logger().error() << "write() failed: " << std::strerror(errno) << "\n";
@@ -119,12 +120,22 @@ bool LinuxNetwork::write(void* p_data, size_t p_size) {
   return static_cast<size_t>(bytes_written) == p_size;
 }
 
-ssize_t LinuxNetwork::read(void* p_data, size_t p_max_size) {
-  // TODO(ahb)
-  (void)p_data;
-  (void)p_max_size;
-  m_os->logger().error() << "functionality not yet implemented in function " << __FUNCTION__ << "\n";  // NOLINT
-  return -1;
+ssize_t LinuxNetwork::recvfrom(void* p_buffer, size_t p_buffer_size, std::string* p_sender) {
+  sockaddr_in sender_address{};
+  socklen_t address_length = sizeof(sender_address);
+  ssize_t bytes_received =
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+      ::recvfrom(m_socket, p_buffer, p_buffer_size, 0, reinterpret_cast<sockaddr*>(&sender_address), &address_length);
+  if (p_sender != nullptr) {
+    std::array<char, INET_ADDRSTRLEN> address_buffer{};
+    if (inet_ntop(sender_address.sin_family, &sender_address.sin_addr, address_buffer.data(), INET_ADDRSTRLEN) ==
+        nullptr) {
+      m_os->logger().error() << "inet_ntop() failed: " << std::strerror(errno) << "\n";
+      return -1;
+    }
+    *p_sender = std::string(address_buffer.data()) + ":" + std::to_string(sender_address.sin_port);
+  }
+  return bytes_received;
 }
 
 bool LinuxNetwork::close() {

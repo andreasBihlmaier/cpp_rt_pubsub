@@ -19,8 +19,8 @@ class LinuxNetwork final : public Network {
   bool listen() override;
   bool accept() override;
   bool connect(const std::string& p_address, uint16_t p_port) override;
-  bool write(void* p_data, size_t p_size) override;
-  ssize_t read(void* p_data, size_t p_max_size) override;
+  bool sendto(const std::string& p_address, void* p_data, size_t p_size) override;
+  ssize_t recvfrom(void* p_buffer, size_t p_buffer_size, std::string* p_sender) override;
   bool close() override;
 };
 

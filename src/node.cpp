@@ -1,7 +1,6 @@
 #include "crps/node.h"
 
 #include <cstring>
-#include <iostream>  // TODO(ahb)
 
 namespace crps {
 
@@ -66,7 +65,6 @@ bool Node::register_node() {
   )"_json;
   cmd["rpc_id"] = m_bp_counter;  // Use m_bp_counter as an unique-per-node-per-ongoing-transaction number
   cmd["node"]["params"]["node_name"] = m_name;
-  std::cout << cmd << std::endl;
   auto result = broker_rpc_blocking(cmd);
   if (result.empty()) {
     return false;
@@ -87,6 +85,7 @@ json Node::broker_rpc_blocking(const json& cmd) {
 
 bool Node::bp_send_control(const std::string& cmd) {
   std::vector<unsigned char> buffer(bp_header_size + bp_control_header_size + cmd.size());
+  m_os->logger().debug() << "bp_send_control(" << cmd << ") " << buffer.size() << " bytes\n";
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   auto* bp_header = reinterpret_cast<BpHeader*>(buffer.data());
   bp_header->type = BpType::Control;
@@ -95,7 +94,7 @@ bool Node::bp_send_control(const std::string& cmd) {
   auto* bp_control_header = reinterpret_cast<BpControlHeader*>(&buffer[bp_header_size]);
   bp_control_header->size = cmd.size();
   std::memcpy(&buffer[bp_header_size + bp_control_header_size], &cmd[0], cmd.size());
-  return m_network->write(buffer.data(), buffer.size());
+  return m_network->sendto(m_broker_address, buffer.data(), buffer.size());
 }
 
 BpCounterType Node::next_bp_counter() {

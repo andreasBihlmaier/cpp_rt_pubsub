@@ -22,19 +22,19 @@ struct BpHeader {
   BpType type;
   BpCounterType counter;
 } __attribute__((packed));
-const uint8_t bp_header_size = sizeof(BpHeader);
+const size_t bp_header_size = sizeof(BpHeader);
 
 struct BpControlHeader {
   uint32_t size;
 } __attribute__((packed));
-const uint8_t bp_control_header_size = sizeof(BpControlHeader);
+const size_t bp_control_header_size = sizeof(BpControlHeader);
 
 struct BpDataHeader {
   TopicId topic_id;
   MessageTypeId message_id;
   uint32_t size;
 } __attribute__((packed));
-const uint8_t bp_data_header_size = sizeof(BpDataHeader);
+const size_t bp_data_header_size = sizeof(BpDataHeader);
 
 }  // namespace crps
 

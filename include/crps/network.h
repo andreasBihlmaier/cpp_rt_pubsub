@@ -19,8 +19,8 @@ class Network {
   virtual bool listen() = 0;
   virtual bool accept() = 0;
   virtual bool connect(const std::string& p_address, uint16_t p_port) = 0;
-  virtual bool write(void* p_data, size_t p_size) = 0;
-  virtual ssize_t read(void* p_data, size_t p_max_size) = 0;
+  virtual bool sendto(const std::string& p_address, void* p_data, size_t p_size) = 0;
+  virtual ssize_t recvfrom(void* p_buffer, size_t p_buffer_size, std::string* p_sender) = 0;
   virtual bool close() = 0;
 };
 
