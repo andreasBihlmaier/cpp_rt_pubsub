@@ -1,12 +1,19 @@
 #include "crps/broker.h"
 
 #include <chrono>
+#include <nlohmann/json.hpp>
 #include <thread>
 
 namespace crps {
 
-Broker::Broker(std::string p_listen_address, Network* p_network, Network::Protocol p_protocol, int16_t p_port)
-    : m_listen_address(std::move(p_listen_address)), m_network(p_network), m_protocol(p_protocol), m_port(p_port) {
+Broker::Broker(std::string p_listen_address, OS* p_os, Network* p_network, Network::Protocol p_protocol, int16_t p_port)
+    : m_listen_address(std::move(p_listen_address)),
+      m_os(p_os),
+      m_network(p_network),
+      m_protocol(p_protocol),
+      m_port(p_port) {
+  // TODO(ahb) prevent clang-diagnostic-unused-private-field -> remove
+  (void)m_os;
 }
 
 bool Broker::start() {

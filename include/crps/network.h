@@ -9,7 +9,7 @@ namespace crps {
 class Network {
  public:
   enum class Protocol {
-    INVALID = 0,
+    Invalid = 0,
     UDP = 1,
     TCP = 2,
   };

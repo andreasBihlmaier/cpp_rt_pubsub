@@ -5,13 +5,6 @@
 
 namespace crps {
 
-Logger::Logger(WriteLogFunction p_write_log) : m_write_log(std::move(p_write_log)) {
-}
-
-Logger::~Logger() {
-  m_write_log(m_stream);
-}
-
 std::ostringstream& Logger::log(LogLevel p_level) {
   auto now = std::chrono::system_clock::now();
   auto now_ns = std::chrono::time_point_cast<std::chrono::nanoseconds>(now);

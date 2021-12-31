@@ -15,16 +15,18 @@ endif (NOT CMAKE_BUILD_TYPE)
 
 set(CMAKE_CXX_CLANG_TIDY
   clang-tidy;
-  -header-filter=include;
+  -header-filter=include/crps;
   -checks=*,-modernize-use-trailing-return-type,-fuchsia-default-arguments-calls,-fuchsia-default-arguments-declarations;
   -warnings-as-errors=*;)
 
 set(CMAKE_CXX_CPPCHECK
   cppcheck;
-  --std=c++${CMAKE_CXX_STANDARD})
+  --std=c++${CMAKE_CXX_STANDARD}
+  --suppress=*:*/third_party/*)
 
 include_directories(
   include
+  third_party/nlohmann_json/include
 )
 
 #link_directories(

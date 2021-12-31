@@ -1,4 +1,3 @@
-#include <iostream>
 #include <memory>
 
 #include "crps/broker.h"
@@ -11,9 +10,9 @@ int main(int argc, char* argv[]) {
   auto os = std::make_unique<crps::LinuxOS>(true);
   auto network = std::make_unique<crps::LinuxNetwork>(os.get());
 
-  auto broker = std::make_unique<crps::Broker>("127.0.0.1", network.get());
+  auto broker = std::make_unique<crps::Broker>("127.0.0.1", os.get(), network.get());
   if (!broker->start()) {
-    std::cout << "Broker failed to start. Exiting." << std::endl;
+    os->logger().error() << "Broker failed to start. Exiting.\n";
     return 1;
   }
 

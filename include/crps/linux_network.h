@@ -10,7 +10,7 @@ class LinuxNetwork final : public Network {
  private:
   int m_socket = -1;
   OS* m_os;
-  Protocol m_protocol = Protocol::INVALID;
+  Protocol m_protocol = Protocol::Invalid;
 
  public:
   explicit LinuxNetwork(OS* p_os);
