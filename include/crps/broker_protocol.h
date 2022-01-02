@@ -2,15 +2,19 @@
 #define CRPS_BROKER_PROTOCOL_H
 
 #include <cstdint>
+#include <nlohmann/json.hpp>
 
 #include "crps/message.h"
 #include "crps/topic.h"
 
 namespace crps {
 
+using json = nlohmann::json;
+
 // bp = broker protocol
 
-using BpCounterType = uint32_t;
+using BpCounter = uint32_t;
+using BpNodeId = uint32_t;
 
 enum class BpType : uint8_t {
   Invalid = 0,
@@ -20,7 +24,7 @@ enum class BpType : uint8_t {
 
 struct BpHeader {
   BpType type;
-  BpCounterType counter;
+  BpCounter counter;
 } __attribute__((packed));
 const size_t bp_header_size = sizeof(BpHeader);
 
@@ -35,6 +39,9 @@ struct BpDataHeader {
   uint32_t size;
 } __attribute__((packed));
 const size_t bp_data_header_size = sizeof(BpDataHeader);
+
+void bp_control_json_to_packet_buffer(const json& p_control_json, BpCounter counter,
+                                      std::vector<unsigned char>* p_buffer);
 
 }  // namespace crps
 

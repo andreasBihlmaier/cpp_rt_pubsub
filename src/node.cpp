@@ -4,16 +4,13 @@
 
 namespace crps {
 
-Node::Node(std::string p_name, std::string p_broker_address, OS* p_os, Network* p_network, Network::Protocol p_protocol,
+Node::Node(std::string p_name, std::string p_broker_host, OS* p_os, Network* p_network, Network::Protocol p_protocol,
            int16_t p_port)
     : m_name(std::move(p_name)),
-      m_broker_address(std::move(p_broker_address)),
+      m_broker_address(std::move(p_broker_host) + ":" + std::to_string(p_port)),
       m_os(p_os),
       m_network(p_network),
-      m_protocol(p_protocol),
-      m_port(p_port) {
-  // TODO(ahb) prevent clang-diagnostic-unused-private-field -> remove
-  (void)m_node_id;
+      m_protocol(p_protocol) {
 }
 
 bool Node::connect() {
@@ -21,7 +18,7 @@ bool Node::connect() {
     return false;
   }
 
-  if (!m_network->connect(m_broker_address, m_port)) {
+  if (!m_network->connect(m_broker_address)) {
     return false;
   }
 
@@ -51,7 +48,7 @@ Subscriber* Node::create_subscriber(std::string p_topic_name, std::string p_type
 // [1] single thread with priorities as data or multiple threads with different thread priorities?
 
 bool Node::register_node() {
-  auto cmd = R"(
+  auto request = R"(
     {
       "rpc_id": 0,
       "scope": "node",
@@ -63,41 +60,42 @@ bool Node::register_node() {
       }
     }
   )"_json;
-  cmd["rpc_id"] = m_bp_counter;  // Use m_bp_counter as an unique-per-node-per-ongoing-transaction number
-  cmd["node"]["params"]["node_name"] = m_name;
-  auto result = broker_rpc_blocking(cmd);
+  request["rpc_id"] = m_bp_counter;  // Use m_bp_counter as an unique-per-node-per-ongoing-transaction number
+  request["node"]["params"]["node_name"] = m_name;
+  auto result = broker_rpc_blocking(request);
   if (result.empty()) {
     return false;
   }
   // TODO(ahb)
   (void)result;
+  (void)m_node_id;
   return true;
 }
 
-json Node::broker_rpc_blocking(const json& cmd) {
-  if (!bp_send_control(cmd.dump())) {
-    m_os->logger().error() << "bp_send_control(" << cmd << ") failed.\n";
+json Node::broker_rpc_blocking(const json& p_request) {
+  if (!send_control(p_request)) {
+    m_os->logger().error() << "send_control(" << p_request << ") failed.\n";
     return json{};
   }
+
+  // TODO(ahb) refactor vvv
+  const size_t buffer_size = 64 * 1024;  // 64K is maximum UDP datagram size
+  std::array<unsigned char, buffer_size> buffer{};
+  ssize_t bytes_received_signed = m_network->recvfrom(buffer.data(), buffer_size, nullptr);
+  m_os->logger().debug() << "received " << bytes_received_signed << " bytes\n";
   // TODO(ahb) get response
+
   return json{};  // TODO(ahb)
 }
 
-bool Node::bp_send_control(const std::string& cmd) {
-  std::vector<unsigned char> buffer(bp_header_size + bp_control_header_size + cmd.size());
-  m_os->logger().debug() << "bp_send_control(" << cmd << ") " << buffer.size() << " bytes\n";
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-  auto* bp_header = reinterpret_cast<BpHeader*>(buffer.data());
-  bp_header->type = BpType::Control;
-  bp_header->counter = next_bp_counter();
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-  auto* bp_control_header = reinterpret_cast<BpControlHeader*>(&buffer[bp_header_size]);
-  bp_control_header->size = cmd.size();
-  std::memcpy(&buffer[bp_header_size + bp_control_header_size], &cmd[0], cmd.size());
+bool Node::send_control(const json& p_request) {
+  std::vector<unsigned char> buffer;
+  bp_control_json_to_packet_buffer(p_request, next_bp_counter(), &buffer);
+  m_os->logger().debug() << "send_control(" << p_request.dump() << ") " << buffer.size() << " bytes\n";
   return m_network->sendto(m_broker_address, buffer.data(), buffer.size());
 }
 
-BpCounterType Node::next_bp_counter() {
+BpCounter Node::next_bp_counter() {
   m_bp_counter += 1;
   return m_bp_counter;
 }

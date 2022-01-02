@@ -24,6 +24,7 @@ Limitations / Potential improvements
 * Single-threaded
 * Single broker (instead of one broker per host to keep communication between nodes on same host local)
 * IPv4 only
+* No DNS support, only IP addresses
 
 Notes
 -----
@@ -32,7 +33,10 @@ Notes
 
 TODOs
 -----
+* All `TODO`s in the code ;)
 * Tests
 * Documentation
 * Implement `Network::Protocol::TCP`
 * Handle wrap around of `BpHeader::counter`
+* Make implementation robust against corrupted / not well-formed messages, esp. `BpType::Control`.
+* Distinct `error_code`s in Control JSON

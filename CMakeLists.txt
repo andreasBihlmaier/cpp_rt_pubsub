@@ -34,6 +34,7 @@ include_directories(
 
 add_library(crps_common SHARED
   src/os.cpp
+  src/broker_protocol.cpp
 )
 #target_link_libraries(crps_common
 #)

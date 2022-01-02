@@ -1,6 +1,8 @@
 #ifndef CRPS_OS_H
 #define CRPS_OS_H
 
+#include <arpa/inet.h>  // TODO(ahb) add abstraction/ifdef for ntoh* and ntoh*
+
 #include <functional>
 #include <sstream>
 

@@ -3,7 +3,7 @@
 
 namespace crps {
 
-const uint16_t broker_default_port = 4223;
+const uint16_t broker_default_port = 12345;
 
 }  // namespace crps
 

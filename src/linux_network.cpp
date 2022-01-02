@@ -10,14 +10,18 @@
 
 namespace crps {
 
-bool to_sockaddr(const std::string& p_address, uint16_t p_port, sockaddr_in* p_sock_address) {
+bool to_sockaddr(const std::string& p_address, sockaddr_in* p_sock_address) {
   const int protocol_family = AF_INET;  // IPv4
 
-  if (inet_pton(protocol_family, p_address.c_str(), p_sock_address) != 1) {
+  auto address_delimiter = p_address.find(':');
+  std::string host = p_address.substr(0, address_delimiter);
+  uint16_t port = std::stoi(p_address.substr(address_delimiter + 1));
+
+  if (inet_pton(protocol_family, host.c_str(), p_sock_address) != 1) {
     return false;
   }
   p_sock_address->sin_family = protocol_family;
-  p_sock_address->sin_port = htons(p_port);
+  p_sock_address->sin_port = htons(port);
 
   return true;
 }
@@ -56,9 +60,9 @@ bool LinuxNetwork::socket(Protocol p_protocol) {
   return true;
 }
 
-bool LinuxNetwork::bind(const std::string& p_address, uint16_t p_port) {
+bool LinuxNetwork::bind(const std::string& p_address) {
   sockaddr_in bind_address{};
-  if (!to_sockaddr(p_address, p_port, &bind_address)) {
+  if (!to_sockaddr(p_address, &bind_address)) {
     m_os->logger().error() << "to_sockaddr_in() failed: " << std::strerror(errno) << "\n";
     return false;
   }
@@ -94,9 +98,9 @@ bool LinuxNetwork::accept() {
   return true;
 }
 
-bool LinuxNetwork::connect(const std::string& p_address, uint16_t p_port) {
+bool LinuxNetwork::connect(const std::string& p_address) {
   sockaddr_in connect_address{};
-  if (!to_sockaddr(p_address, p_port, &connect_address)) {
+  if (!to_sockaddr(p_address, &connect_address)) {
     m_os->logger().error() << "to_sockaddr_in() failed: " << std::strerror(errno) << "\n";
     return false;
   }
@@ -111,29 +115,36 @@ bool LinuxNetwork::connect(const std::string& p_address, uint16_t p_port) {
 }
 
 bool LinuxNetwork::sendto(const std::string& p_address, void* p_data, size_t p_size) {
-  (void)p_address;  // TODO(ahb)
-  ssize_t bytes_written = ::write(m_socket, p_data, p_size);
+  sockaddr_in receiver_sockaddr{};
+  if (!to_sockaddr(p_address, &receiver_sockaddr)) {
+    m_os->logger().error() << "to_sockaddr_in() failed: " << std::strerror(errno) << "\n";
+    return false;
+  }
+  ssize_t bytes_written =
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+      ::sendto(m_socket, p_data, p_size, 0, reinterpret_cast<sockaddr*>(&receiver_sockaddr), sizeof(receiver_sockaddr));
   if (bytes_written < 0) {
-    m_os->logger().error() << "write() failed: " << std::strerror(errno) << "\n";
+    m_os->logger().error() << "sendto() failed: " << std::strerror(errno) << "\n";
     return false;
   }
   return static_cast<size_t>(bytes_written) == p_size;
 }
 
-ssize_t LinuxNetwork::recvfrom(void* p_buffer, size_t p_buffer_size, std::string* p_sender) {
-  sockaddr_in sender_address{};
-  socklen_t address_length = sizeof(sender_address);
+ssize_t LinuxNetwork::recvfrom(void* p_buffer, size_t p_buffer_size, std::string* p_sender_address) {
+  sockaddr_in sender_sockaddr{};
+  socklen_t sender_sockaddr_size = sizeof(sender_sockaddr);
   ssize_t bytes_received =
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      ::recvfrom(m_socket, p_buffer, p_buffer_size, 0, reinterpret_cast<sockaddr*>(&sender_address), &address_length);
-  if (p_sender != nullptr) {
+      ::recvfrom(m_socket, p_buffer, p_buffer_size, 0, reinterpret_cast<sockaddr*>(&sender_sockaddr),
+                 &sender_sockaddr_size);
+  if (p_sender_address != nullptr) {
     std::array<char, INET_ADDRSTRLEN> address_buffer{};
-    if (inet_ntop(sender_address.sin_family, &sender_address.sin_addr, address_buffer.data(), INET_ADDRSTRLEN) ==
+    if (inet_ntop(sender_sockaddr.sin_family, &sender_sockaddr.sin_addr, address_buffer.data(), INET_ADDRSTRLEN) ==
         nullptr) {
       m_os->logger().error() << "inet_ntop() failed: " << std::strerror(errno) << "\n";
       return -1;
     }
-    *p_sender = std::string(address_buffer.data()) + ":" + std::to_string(sender_address.sin_port);
+    *p_sender_address = std::string(address_buffer.data()) + ":" + std::to_string(ntohs(sender_sockaddr.sin_port));
   }
   return bytes_received;
 }
