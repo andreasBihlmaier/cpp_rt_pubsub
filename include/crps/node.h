@@ -29,6 +29,10 @@ class Node {
 
  private:
   bool register_node();
+  bool register_message_type(const std::string& p_message_type_name, MessageSize p_message_size,
+                             MessageTypeId* p_message_type_id);
+  bool register_topic(const std::string& p_topic_name, MessageTypeId p_message_type_id, TopicPriority p_topic_priority,
+                      TopicId* p_topic_id, TopicPriority* p_actual_topic_priority = nullptr);
   bool register_publisher(Publisher* p_publisher);
   bool register_subscriber(Subscriber* p_subscriber);
   json broker_rpc_blocking(const json& p_request);

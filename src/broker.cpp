@@ -63,7 +63,7 @@ void Broker::spin() {
       m_os->logger().error() << "decode_packet_buffer() from " << client
                              << " failed. Ignoring packet and continuing.\n";
     } else if (bp_type == BpType::Control) {
-      if (!send_control_response(client, process_control_request(control_json))) {
+      if (!send_control_response(client, process_control_request(client, control_json))) {
         m_os->logger().error() << "Failed to send control response.\n";
       }
     } else if (bp_type == BpType::Data) {
@@ -74,25 +74,25 @@ void Broker::spin() {
   }
 }
 
-bool Broker::verify_and_update_client_counter(const std::string& p_client, BpCounter p_counter) {
-  if (m_client_counters.find(p_client) == m_client_counters.end()) {  // new client
-    m_client_counters[p_client] = p_counter;
-  } else if (m_client_counters[p_client] + 1 != p_counter) {
-    m_os->logger().error() << "BpHeader::counter from " << p_client << " is wrong. Expected "
-                           << m_client_counters[p_client] + 1 << " but got " << p_counter
+bool Broker::verify_and_update_client_counter(const std::string& p_client_address, BpCounter p_counter) {
+  if (m_client_counters.find(p_client_address) == m_client_counters.end()) {  // new client
+    m_client_counters[p_client_address] = p_counter;
+  } else if (m_client_counters[p_client_address] + 1 != p_counter) {
+    m_os->logger().error() << "BpHeader::counter from " << p_client_address << " is wrong. Expected "
+                           << m_client_counters[p_client_address] + 1 << " but got " << p_counter
                            << ". This indicates lost packets! Ignoring packet and continuing.\n";
     return false;
   }
-  m_client_counters[p_client] = p_counter;
+  m_client_counters[p_client_address] = p_counter;
   return true;
 }
 
-json Broker::process_control_request(const json& p_request) {
+json Broker::process_control_request(const std::string& p_client_address, const json& p_request) {
   json response{};
   if (p_request["scope"] == "node") {
     if (p_request["node"]["action"] == "register") {
       BpNodeId node_id{};
-      if (!register_node(p_request["node"]["params"]["name"], &node_id)) {
+      if (!register_node(p_client_address, p_request["node"]["params"]["name"], &node_id)) {
         return rpc_failure_response(p_request["rpc_id"], 0, "Failed to register node");
       }
       response.clear();
@@ -121,14 +121,32 @@ json Broker::process_control_request(const json& p_request) {
   } else if (p_request["scope"] == "topic") {
     if (p_request["topic"]["action"] == "register") {
       TopicId topic_id{};
+      TopicPriority actual_topic_priority{};
       if (!register_topic(p_request["topic"]["params"]["name"], p_request["topic"]["params"]["message_type_id"],
-                          p_request["topic"]["params"]["priority"], &topic_id)) {
+                          p_request["topic"]["params"]["priority"], &topic_id, &actual_topic_priority)) {
         return rpc_failure_response(p_request["rpc_id"], 0, "Failed to register topic");
       }
       response.clear();
       response["rpc_id"] = p_request["rpc_id"];
       response["success"] = true;
       response["topic_id"] = topic_id;
+      response["topic_priority"] = actual_topic_priority;
+    } else if (p_request["topic"]["action"] == "add_publisher") {
+      if (!add_publisher(p_request["topic"]["params"]["node_id"], p_request["topic"]["params"]["topic_id"],
+                         p_request["topic"]["params"]["topic_id"])) {
+        return rpc_failure_response(p_request["rpc_id"], 0, "Failed to add publisher");
+      }
+      response.clear();
+      response["rpc_id"] = p_request["rpc_id"];
+      response["success"] = true;
+    } else if (p_request["topic"]["action"] == "add_subscriber") {
+      if (!add_subscriber(p_request["topic"]["params"]["node_id"], p_request["topic"]["params"]["topic_id"],
+                          p_request["topic"]["params"]["topic_id"])) {
+        return rpc_failure_response(p_request["rpc_id"], 0, "Failed to add subscriber");
+      }
+      response.clear();
+      response["rpc_id"] = p_request["rpc_id"];
+      response["success"] = true;
     } else {
       // TODO(ahb)
       m_os->logger().error() << "functionality not yet implemented in function " << __FUNCTION__ << "\n";  // NOLINT
@@ -140,16 +158,17 @@ json Broker::process_control_request(const json& p_request) {
   return response;
 }
 
-bool Broker::register_node(const std::string& p_node_name, BpNodeId* p_node_id) {
+bool Broker::register_node(const std::string& p_client_address, const std::string& p_node_name, BpNodeId* p_node_id) {
   auto node_info = std::find_if(m_nodes.begin(), m_nodes.end(), [&](const auto& ni) { return ni.name == p_node_name; });
   if (node_info == m_nodes.end()) {
-    m_nodes.emplace_back(NodeInfo{p_node_name});
+    m_nodes.emplace_back(NodeInfo{p_node_name, p_client_address});
     *p_node_id = m_nodes.size() - 1;
-    m_os->logger().debug() << "Registered node '" << p_node_name << "' with node ID " << *p_node_id << ".\n";
+    m_os->logger().info() << "Registered node '" << p_node_name << "' at address " << p_client_address
+                          << " with node ID " << *p_node_id << ".\n";
     return true;
   }
 
-  m_os->logger().warn() << "Already registered node '" << p_node_name << "' tried to register again.\n";
+  m_os->logger().warn() << "Cannot register already registered node '" << p_node_name << "'.\n";
   return false;
 }
 
@@ -160,12 +179,12 @@ bool Broker::register_message_type(const std::string& p_message_type_name, Messa
   if (message_type_info == m_message_types.end()) {
     m_message_types.emplace_back(MessageTypeInfo{p_message_type_name, p_message_size});
     *p_message_type_id = m_message_types.size() - 1;
-    m_os->logger().debug() << "Registered new message type '" << p_message_type_name << "' of size " << p_message_size
-                           << " with message ID " << *p_message_type_id << ".\n";
+    m_os->logger().info() << "Registered new message type '" << p_message_type_name << "' of size " << p_message_size
+                          << " with message ID " << *p_message_type_id << ".\n";
   } else {
     MessageTypeId message_type_id = message_type_info - m_message_types.begin();
     if (message_type_info->size != p_message_size) {
-      m_os->logger().error() << "Tried to register already registered message type '" << p_message_type_name
+      m_os->logger().error() << "Cannot register already registered message type '" << p_message_type_name
                              << "' (ID: " << message_type_id
                              << "), but with different size (already registered size: " << message_type_info->size
                              << "; new registration size:" << p_message_size << ").\n";
@@ -177,38 +196,68 @@ bool Broker::register_message_type(const std::string& p_message_type_name, Messa
 }
 
 bool Broker::register_topic(const std::string& p_topic_name, MessageTypeId p_message_type_id,
-                            TopicPriority p_topic_priority, TopicId* p_topic_id) {
+                            TopicPriority p_topic_priority, TopicId* p_topic_id,
+                            TopicPriority* p_actual_topic_priority) {
   if (p_message_type_id >= m_message_types.size()) {
     m_os->logger().error() << "Cannot register new topic '" << p_topic_name << "' of unknown message type "
                            << p_message_type_id << "\n";
   }
   auto topic = std::find_if(m_topics.begin(), m_topics.end(), [&](const auto& t) { return t.name == p_topic_name; });
   if (topic == m_topics.end()) {
-    m_topics.emplace_back(Topic{p_topic_name, p_message_type_id, p_topic_priority});
+    if (p_topic_priority == dontcare_topic_priority) {
+      m_os->logger().error() << "Cannot register new topic '" << p_topic_name << "' with don't-care priority.\n";
+      return false;
+    }
+    m_topics.emplace_back(Topic{p_topic_name, p_message_type_id, p_topic_priority, {}, {}});
     *p_topic_id = m_topics.size() - 1;
-    m_os->logger().debug() << "Registered new topic '" << p_topic_name << "' of type " << p_message_type_id << " ('"
-                           << m_message_types[p_message_type_id].name << "') and priority "
-                           << static_cast<int>(p_topic_priority) << " with topic ID " << *p_topic_id << ".\n";
+    m_os->logger().info() << "Registered new topic '" << p_topic_name << "' of type " << p_message_type_id << " ('"
+                          << m_message_types[p_message_type_id].name << "') and priority "
+                          << static_cast<int>(p_topic_priority) << " with topic ID " << *p_topic_id << ".\n";
   } else {
     TopicId topic_id = topic - m_topics.begin();
     if (topic->message_type_id != p_message_type_id) {
-      m_os->logger().error() << "Tried to register already registered topic '" << p_topic_name << "' (ID: " << topic_id
+      m_os->logger().error() << "Cannot register already registered topic '" << p_topic_name << "' (ID: " << topic_id
                              << "), but with different message type (already registered type: "
                              << topic->message_type_id << " ('" << m_message_types[topic->message_type_id].name
                              << "'); new registration type:" << p_message_type_id << " ('"
                              << m_message_types[p_message_type_id].name << "')).\n";
       return false;
     }
-    if (topic->priority != p_topic_priority) {
-      m_os->logger().error() << "Tried to register already registered topic '" << p_topic_name << "' (ID: " << topic_id
+    if (p_topic_priority != dontcare_topic_priority && topic->priority != p_topic_priority) {
+      m_os->logger().error() << "Cannot register already registered topic '" << p_topic_name << "' (ID: " << topic_id
                              << "), but with different priorities (already registered priority: " << topic->priority
                              << "; new registration priority:" << p_topic_priority << ").\n";
       return false;
     }
     *p_topic_id = topic_id;
+    *p_actual_topic_priority = topic->priority;
   }
   return true;
-}  // namespace crps
+}
+
+bool Broker::add_publisher(BpNodeId p_node_id, TopicId p_topic_id, MessageTypeId p_message_type_id) {
+  if (!validate_topic_parameters(p_node_id, p_topic_id, p_message_type_id)) {
+    m_os->logger().error() << "Failed adding publisher.\n";
+    return false;
+  }
+
+  m_topics[p_topic_id].publishers.push_back(p_node_id);
+  m_os->logger().info() << "Added publisher from node " << p_node_id << " ('" << m_nodes[p_node_id].name
+                        << "') to topic " << p_topic_id << " ('" << m_topics[p_topic_id].name << "')\n";
+  return true;
+}
+
+bool Broker::add_subscriber(BpNodeId p_node_id, TopicId p_topic_id, MessageTypeId p_message_type_id) {
+  if (!validate_topic_parameters(p_node_id, p_topic_id, p_message_type_id)) {
+    m_os->logger().error() << "Failed adding subscriber.\n";
+    return false;
+  }
+
+  m_topics[p_topic_id].subscribers.push_back(p_node_id);
+  m_os->logger().info() << "Added subscriber from node " << p_node_id << " ('" << m_nodes[p_node_id].name
+                        << "') to topic " << p_topic_id << " ('" << m_topics[p_topic_id].name << "')\n";
+  return true;
+}
 
 bool Broker::send_control_response(const std::string& p_address, const json& p_response) {
   std::vector<unsigned char> buffer;
@@ -225,6 +274,31 @@ json Broker::rpc_failure_response(int rpc_id, int p_error_code, const std::strin
   response["error_message"] = p_error_message;
   m_os->logger().warn() << "RPC failure: " << response << "\n";
   return response;
+}
+
+bool Broker::validate_topic_parameters(BpNodeId p_node_id, TopicId p_topic_id, MessageTypeId p_message_type_id) {
+  if (p_node_id >= m_nodes.size()) {
+    m_os->logger().error() << "Cannot add pub/sub with unknown node ID " << p_node_id << ".\n";
+    return false;
+  }
+  if (p_topic_id >= m_topics.size()) {
+    m_os->logger().error() << "Cannot add pub/sub with unknown topic ID " << p_topic_id << ".\n";
+    return false;
+  }
+  if (p_message_type_id >= m_message_types.size()) {
+    m_os->logger().error() << "Cannot add pub/sub with unknown message type ID " << p_message_type_id << ".\n";
+    return false;
+  }
+  auto& topic = m_topics[p_topic_id];
+  auto& message_type = m_message_types[topic.message_type_id];
+  if (topic.message_type_id != p_message_type_id) {
+    m_os->logger().error() << "Cannot add pub/sub to topic " << p_topic_id << " ('" << topic.name
+                           << "') with wrong message type (actual topic message type: " << topic.message_type_id
+                           << " ('" << message_type.name << "'); requested type: " << p_message_type_id << " ('"
+                           << m_message_types[p_message_type_id].name << "'))\n";
+    return false;
+  }
+  return true;
 }
 
 }  // namespace crps

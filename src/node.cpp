@@ -38,6 +38,7 @@ bool Node::connect() {
     }
   }
 
+  m_os->logger().info() << "Node '" << m_name << "' connected with ID " << m_node_id << ".\n";
   return true;
 }
 
@@ -80,9 +81,9 @@ bool Node::register_node() {
   return true;
 }
 
-bool Node::register_publisher(Publisher* p_publisher) {
-  {  // register message type
-    auto request = R"(
+bool Node::register_message_type(const std::string& p_message_type_name, MessageSize p_message_size,
+                                 MessageTypeId* p_message_type_id) {
+  auto request = R"(
     {
       "scope": "message",
       "message": {
@@ -92,18 +93,20 @@ bool Node::register_publisher(Publisher* p_publisher) {
       }
     }
   )"_json;
-    request["rpc_id"] = rpc_id();
-    request["message"]["params"]["name"] = p_publisher->message_type_name();
-    request["message"]["params"]["size"] = p_publisher->message_size();
-    auto result = broker_rpc_blocking(request);
-    if (result.empty() || !result["success"]) {
-      return false;
-    }
-    p_publisher->set_message_type_id(result["message_type_id"]);
+  request["rpc_id"] = rpc_id();
+  request["message"]["params"]["name"] = p_message_type_name;
+  request["message"]["params"]["size"] = p_message_size;
+  auto result = broker_rpc_blocking(request);
+  if (result.empty() || !result["success"]) {
+    return false;
   }
+  *p_message_type_id = result["message_type_id"];
+  return true;
+}
 
-  {  // register topic
-    auto request = R"(
+bool Node::register_topic(const std::string& p_topic_name, MessageTypeId p_message_type_id,
+                          TopicPriority p_topic_priority, TopicId* p_topic_id, TopicPriority* p_actual_topic_priority) {
+  auto request = R"(
     {
       "scope": "topic",
       "topic": {
@@ -113,16 +116,37 @@ bool Node::register_publisher(Publisher* p_publisher) {
       }
     }
   )"_json;
-    request["rpc_id"] = rpc_id();
-    request["topic"]["params"]["name"] = p_publisher->topic_name();
-    request["topic"]["params"]["message_type_id"] = p_publisher->message_type_id();
-    request["topic"]["params"]["priority"] = p_publisher->topic_priority();
-    auto result = broker_rpc_blocking(request);
-    if (result.empty() || !result["success"]) {
+  request["rpc_id"] = rpc_id();
+  request["topic"]["params"]["name"] = p_topic_name;
+  request["topic"]["params"]["message_type_id"] = p_message_type_id;
+  request["topic"]["params"]["priority"] = p_topic_priority;
+  auto result = broker_rpc_blocking(request);
+  if (result.empty() || !result["success"]) {
+    return false;
+  }
+  *p_topic_id = result["topic_id"];
+  if (p_actual_topic_priority != nullptr) {
+    *p_actual_topic_priority = result["topic_priority"];
+  }
+  return true;
+}
+
+bool Node::register_publisher(Publisher* p_publisher) {
+  {  // register message type
+    MessageTypeId message_type_id{};
+    if (!register_message_type(p_publisher->message_type_name(), p_publisher->message_size(), &message_type_id)) {
       return false;
     }
-    // TODO(ahb) use result["..."]
-    (void)result;
+    p_publisher->set_message_type_id(message_type_id);
+  }
+
+  {  // register topic
+    TopicId topic_id{};
+    if (!register_topic(p_publisher->topic_name(), p_publisher->message_type_id(), p_publisher->topic_priority(),
+                        &topic_id)) {
+      return false;
+    }
+    p_publisher->set_topic_id(topic_id);
   }
 
   {  // add publisher
@@ -137,13 +161,13 @@ bool Node::register_publisher(Publisher* p_publisher) {
     }
   )"_json;
     request["rpc_id"] = rpc_id();
+    request["topic"]["params"]["node_id"] = m_node_id;
     request["topic"]["params"]["topic_id"] = p_publisher->topic_id();
     request["topic"]["params"]["message_type_id"] = p_publisher->message_type_id();
     auto result = broker_rpc_blocking(request);
     if (result.empty() || !result["success"]) {
       return false;
     }
-    // TODO(ahb) use result["..."]
     (void)result;
   }
 
@@ -151,8 +175,47 @@ bool Node::register_publisher(Publisher* p_publisher) {
 }
 
 bool Node::register_subscriber(Subscriber* p_subscriber) {
-  m_os->logger().debug() << "Registering subscriber " << p_subscriber->topic_name() << "\n";
-  return true;  // TODO(ahb)
+  {  // register message type
+    MessageTypeId message_type_id{};
+    if (!register_message_type(p_subscriber->message_type_name(), p_subscriber->message_size(), &message_type_id)) {
+      return false;
+    }
+    p_subscriber->set_message_type_id(message_type_id);
+  }
+
+  {  // register topic
+    TopicId topic_id{};
+    TopicPriority actual_topic_priority{};
+    if (!register_topic(p_subscriber->topic_name(), p_subscriber->message_type_id(), dontcare_topic_priority, &topic_id,
+                        &actual_topic_priority)) {
+      return false;
+    }
+    p_subscriber->set_topic_id(topic_id);
+  }
+
+  {  // add subscriber
+    auto request = R"(
+    {
+      "scope": "topic",
+      "topic": {
+        "action": "add_subscriber",
+        "params": {
+        }
+      }
+    }
+  )"_json;
+    request["rpc_id"] = rpc_id();
+    request["topic"]["params"]["node_id"] = m_node_id;
+    request["topic"]["params"]["topic_id"] = p_subscriber->topic_id();
+    request["topic"]["params"]["message_type_id"] = p_subscriber->message_type_id();
+    auto result = broker_rpc_blocking(request);
+    if (result.empty() || !result["success"]) {
+      return false;
+    }
+    (void)result;
+  }
+
+  return true;
 }
 
 json Node::broker_rpc_blocking(const json& p_request) {

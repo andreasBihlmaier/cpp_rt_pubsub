@@ -33,6 +33,9 @@ class Subscriber {
   void set_message_type_id(MessageTypeId p_message_type_id) {
     m_message_type_id = p_message_type_id;
   }
+  void set_topic_id(TopicId p_topic_id) {
+    m_topic_id = p_topic_id;
+  }
 
  private:
   std::string m_topic_name;
