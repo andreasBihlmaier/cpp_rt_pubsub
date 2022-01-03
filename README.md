@@ -40,3 +40,5 @@ TODOs
 * Handle wrap around of `BpHeader::counter`
 * Make implementation robust against corrupted / not well-formed messages, esp. `BpType::Control`.
 * Distinct `error_code`s in Control JSON
+* Accept dependency on [Boost.Program_options](https://www.boost.org/libs/program_options) and cleanup `*_main.cpp`(?)
+* Isolate `BpType::Data` processing from `BpType::Control` processing in broker.

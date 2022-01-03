@@ -1,9 +1,12 @@
 #ifndef CRPS_BROKER_PROTOCOL_H
 #define CRPS_BROKER_PROTOCOL_H
 
+#include <arpa/inet.h>  // TODO(ahb) add abstraction/ifdef for ntoh* and ntoh*
+
 #include <cstdint>
 #include <nlohmann/json.hpp>
 
+#include "crps/logger.h"
 #include "crps/message.h"
 #include "crps/topic.h"
 
@@ -42,6 +45,14 @@ const size_t bp_data_header_size = sizeof(BpDataHeader);
 
 void bp_control_json_to_packet_buffer(const json& p_control_json, BpCounter counter,
                                       std::vector<unsigned char>* p_buffer);
+
+// p_header is valid if returned value != BpType::Invalid
+// p_control_header and p_control_json is valid if returned value == BpType::Control
+// p_data_header is valid if returned value == BpType::Data
+[[nodiscard]] BpType decode_packet_buffer(const unsigned char* p_packet_buffer, size_t p_packet_size,
+                                          BpHeader* p_header, BpControlHeader* p_control_header,
+                                          BpDataHeader* p_data_header, json* p_control_json,
+                                          Logger* p_logger = nullptr);
 
 }  // namespace crps
 

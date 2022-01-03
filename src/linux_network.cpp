@@ -10,22 +10,6 @@
 
 namespace crps {
 
-bool to_sockaddr(const std::string& p_address, sockaddr_in* p_sock_address) {
-  const int protocol_family = AF_INET;  // IPv4
-
-  auto address_delimiter = p_address.find(':');
-  std::string host = p_address.substr(0, address_delimiter);
-  uint16_t port = std::stoi(p_address.substr(address_delimiter + 1));
-
-  if (inet_pton(protocol_family, host.c_str(), p_sock_address) != 1) {
-    return false;
-  }
-  p_sock_address->sin_family = protocol_family;
-  p_sock_address->sin_port = htons(port);
-
-  return true;
-}
-
 LinuxNetwork::LinuxNetwork(OS* p_os) : m_os(p_os) {
 }
 
@@ -138,13 +122,9 @@ ssize_t LinuxNetwork::recvfrom(void* p_buffer, size_t p_buffer_size, std::string
       ::recvfrom(m_socket, p_buffer, p_buffer_size, 0, reinterpret_cast<sockaddr*>(&sender_sockaddr),
                  &sender_sockaddr_size);
   if (p_sender_address != nullptr) {
-    std::array<char, INET_ADDRSTRLEN> address_buffer{};
-    if (inet_ntop(sender_sockaddr.sin_family, &sender_sockaddr.sin_addr, address_buffer.data(), INET_ADDRSTRLEN) ==
-        nullptr) {
-      m_os->logger().error() << "inet_ntop() failed: " << std::strerror(errno) << "\n";
+    if (!to_address(sender_sockaddr, p_sender_address)) {
       return -1;
     }
-    *p_sender_address = std::string(address_buffer.data()) + ":" + std::to_string(ntohs(sender_sockaddr.sin_port));
   }
   return bytes_received;
 }
@@ -153,6 +133,44 @@ bool LinuxNetwork::close() {
   // TODO(ahb)
   m_os->logger().error() << "functionality not yet implemented in function " << __FUNCTION__ << "\n";  // NOLINT
   return false;
+}
+
+bool LinuxNetwork::to_sockaddr(const std::string& p_address, sockaddr_in* p_sockaddr) {
+  if (m_address_to_sockaddr.find(p_address) == m_address_to_sockaddr.end()) {
+    sockaddr_in new_sockaddr{};
+    const int protocol_family = AF_INET;  // IPv4
+
+    auto address_delimiter = p_address.find(':');
+    std::string host = p_address.substr(0, address_delimiter);
+    uint16_t port = std::stoi(p_address.substr(address_delimiter + 1));
+
+    if (inet_pton(protocol_family, host.c_str(), &new_sockaddr) != 1) {
+      return false;
+    }
+    new_sockaddr.sin_family = protocol_family;
+    new_sockaddr.sin_port = htons(port);
+    m_address_to_sockaddr[p_address] = new_sockaddr;
+    m_os->logger().debug() << "Adding " << p_address << " to m_address_to_sockaddr.\n";
+  }
+  *p_sockaddr = m_address_to_sockaddr[p_address];
+
+  return true;
+}
+
+bool LinuxNetwork::to_address(const sockaddr_in& p_sockaddr, std::string* p_address) {
+  auto sockaddr_key = std::make_pair(p_sockaddr.sin_addr.s_addr, p_sockaddr.sin_port);
+  if (m_sockaddr_to_address.find(sockaddr_key) == m_sockaddr_to_address.end()) {
+    std::array<char, INET_ADDRSTRLEN> address_buffer{};
+    if (inet_ntop(p_sockaddr.sin_family, &p_sockaddr.sin_addr, address_buffer.data(), INET_ADDRSTRLEN) == nullptr) {
+      m_os->logger().error() << "inet_ntop() failed: " << std::strerror(errno) << "\n";
+      return false;
+    }
+    m_sockaddr_to_address[sockaddr_key] =
+        std::string(address_buffer.data()) + ":" + std::to_string(ntohs(p_sockaddr.sin_port));
+    m_os->logger().debug() << "Adding " << m_sockaddr_to_address[sockaddr_key] << " to m_sockaddr_to_address.\n";
+  }
+  *p_address = m_sockaddr_to_address[sockaddr_key];
+  return true;
 }
 
 }  // namespace crps

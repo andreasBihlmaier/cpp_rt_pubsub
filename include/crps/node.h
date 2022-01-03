@@ -29,9 +29,12 @@ class Node {
 
  private:
   bool register_node();
+  bool register_publisher(Publisher* p_publisher);
+  bool register_subscriber(Subscriber* p_subscriber);
   json broker_rpc_blocking(const json& p_request);
   bool send_control(const json& p_request);
-  BpCounter next_bp_counter();
+  [[nodiscard]] BpCounter next_bp_counter();
+  [[nodiscard]] uint32_t rpc_id() const;
 
   std::string m_name;
   std::string m_broker_address;

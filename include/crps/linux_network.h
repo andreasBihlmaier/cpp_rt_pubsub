@@ -1,6 +1,10 @@
 #ifndef CRPS_LINUX_NETWORK_H
 #define CRPS_LINUX_NETWORK_H
 
+#include <netinet/in.h>
+
+#include <map>
+
 #include "crps/network.h"
 #include "crps/os.h"
 
@@ -19,9 +23,15 @@ class LinuxNetwork final : public Network {
   bool close() override;
 
  private:
+  bool to_sockaddr(const std::string& p_address, sockaddr_in* p_sockaddr);
+  bool to_address(const sockaddr_in& p_sockaddr, std::string* p_address);
+
   int m_socket = -1;
   OS* m_os;
   Protocol m_protocol = Protocol::Invalid;
+  std::unordered_map<std::string, sockaddr_in> m_address_to_sockaddr;
+  // use std::map instead of std::unordered_map because std::pair does not have a hash function defined
+  std::map<std::pair<in_addr_t, in_port_t>, std::string> m_sockaddr_to_address;
 };
 
 }  // namespace crps
