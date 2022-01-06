@@ -52,6 +52,7 @@ class Broker {
   bool add_publisher(BpNodeId p_node_id, TopicId p_topic_id, MessageTypeId p_message_type_id);
   bool add_subscriber(BpNodeId p_node_id, TopicId p_topic_id, MessageTypeId p_message_type_id);
   bool send_control_response(const std::string& p_address, const json& p_response);
+  bool send_data(const std::string& p_address, const unsigned char* p_buffer, size_t p_packet_size);
   json rpc_failure_response(int rpc_id, int p_error_code, const std::string& p_error_message);
   bool validate_topic_parameters(BpNodeId p_node_id, TopicId p_topic_id, MessageTypeId p_message_type_id);
 

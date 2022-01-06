@@ -34,9 +34,15 @@ void Broker::spin() {
   const size_t buffer_size{64 * 1024};  // 64K is maximum UDP datagram size
   std::array<unsigned char, buffer_size> buffer{};
 
+  // TODO(ahb)
+  // Current implementation:
+  //   Receive packet and directly send it to all subscribers.
+  // (Likely) better implementation:
+  //   Use two threads. Thread A moves incoming packets into the topic queues. Thread B processes the topic queues
+  //   and sends out data to the subscribes in order of priority.
   for (;;) {
     std::string client;
-    ssize_t bytes_received_signed = m_network->recvfrom(buffer.data(), buffer_size, &client);
+    ssize_t bytes_received_signed = m_network->recvfrom(buffer.data(), buffer_size, true, &client);
     m_os->logger().debug() << "received " << bytes_received_signed << " bytes from " << client << "\n";
     if (bytes_received_signed < 0) {
       m_os->logger().error() << "recvfrom() failed. This should not happen! Continuing.\n";
@@ -65,11 +71,39 @@ void Broker::spin() {
     } else if (bp_type == BpType::Control) {
       if (!send_control_response(client, process_control_request(client, control_json))) {
         m_os->logger().error() << "Failed to send control response.\n";
+        break;
       }
     } else if (bp_type == BpType::Data) {
-      // TODO(ahb)
-      m_os->logger().error() << "functionality not yet implemented in function " << __FUNCTION__ << "\n";  // NOLINT
-      break;
+      TopicId topic_id = bp_data_header.topic_id;
+      m_os->logger().debug() << "Received data packet for topic " << topic_id << " ('" << m_topics[topic_id].name
+                             << "') with message type " << bp_data_header.message_type_id << " from " << client
+                             << ".\n";
+      if (topic_id >= m_topics.size()) {
+        m_os->logger().error() << "Received data packet with invalid topic ID " << topic_id << " from " << client
+                               << ". Ignoring packet and continuing.\n";
+        continue;
+      }
+      auto& topic = m_topics[topic_id];
+      if (bp_data_header.message_type_id >= m_message_types.size()) {
+        m_os->logger().error() << "Received data packet with invalid message type ID " << bp_data_header.message_type_id
+                               << " from " << client << ". Ignoring packet and continuing.\n";
+        continue;
+      }
+      if (topic.message_type_id != bp_data_header.message_type_id) {
+        m_os->logger().error() << "Received data packet for topic " << topic_id << " with wrong message type ID "
+                               << bp_data_header.message_type_id << " from " << client
+                               << ". Ignoring packet and continuing.\n";
+        continue;
+      }
+      // auto& message_type = m_message_types[bp_data_header.message_type_id];
+      for (auto subscriber_node_id : topic.subscribers) {
+        auto& subscriber_node = m_nodes[subscriber_node_id];
+        if (!send_data(subscriber_node.address, buffer.data(), bytes_received)) {
+          m_os->logger().error() << "Failed to send message on topic " << topic_id << " ('" << topic.name
+                                 << "') to node " << subscriber_node_id << " ('" << subscriber_node.name
+                                 << "'). Continuing.\n";
+        }
+      }
     }
   }
 }
@@ -210,6 +244,7 @@ bool Broker::register_topic(const std::string& p_topic_name, MessageTypeId p_mes
     }
     m_topics.emplace_back(Topic{p_topic_name, p_message_type_id, p_topic_priority, {}, {}});
     *p_topic_id = m_topics.size() - 1;
+    *p_actual_topic_priority = m_topics.back().priority;
     m_os->logger().info() << "Registered new topic '" << p_topic_name << "' of type " << p_message_type_id << " ('"
                           << m_message_types[p_message_type_id].name << "') and priority "
                           << static_cast<int>(p_topic_priority) << " with topic ID " << *p_topic_id << ".\n";
@@ -262,8 +297,14 @@ bool Broker::add_subscriber(BpNodeId p_node_id, TopicId p_topic_id, MessageTypeI
 bool Broker::send_control_response(const std::string& p_address, const json& p_response) {
   std::vector<unsigned char> buffer;
   bp_control_json_to_packet_buffer(p_response, m_client_counters[p_address], &buffer);
-  m_os->logger().debug() << "send_control_response(" << p_response.dump() << ") " << buffer.size() << " bytes\n";
+  m_os->logger().debug() << "send_control_response(" << p_address << ", " << p_response.dump() << ") " << buffer.size()
+                         << " bytes\n";
   return m_network->sendto(p_address, buffer.data(), buffer.size());
+}
+
+bool Broker::send_data(const std::string& p_address, const unsigned char* p_buffer, size_t p_packet_size) {
+  m_os->logger().debug() << "send_data(" << p_address << ") " << p_packet_size << " bytes\n";
+  return m_network->sendto(p_address, p_buffer, p_packet_size);
 }
 
 json Broker::rpc_failure_response(int rpc_id, int p_error_code, const std::string& p_error_message) {

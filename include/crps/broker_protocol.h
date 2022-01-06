@@ -38,13 +38,15 @@ const size_t bp_control_header_size = sizeof(BpControlHeader);
 
 struct BpDataHeader {
   TopicId topic_id;
-  MessageTypeId message_id;
+  MessageTypeId message_type_id;
   uint32_t size;
 } __attribute__((packed));
 const size_t bp_data_header_size = sizeof(BpDataHeader);
 
-void bp_control_json_to_packet_buffer(const json& p_control_json, BpCounter counter,
+void bp_control_json_to_packet_buffer(const json& p_control_json, BpCounter p_counter,
                                       std::vector<unsigned char>* p_buffer);
+void bp_fill_data_header(BpCounter p_counter, TopicId p_topic_id, MessageTypeId p_message_type_id,
+                         uint32_t p_message_size, void* p_buffer);
 
 // p_header is valid if returned value != BpType::Invalid
 // p_control_header and p_control_json is valid if returned value == BpType::Control

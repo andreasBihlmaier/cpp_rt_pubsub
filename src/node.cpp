@@ -26,16 +26,26 @@ bool Node::connect() {
     return false;
   }
 
-  for (auto& publisher : m_publishers) {
+  for (unsigned i = 0; i < m_publishers.size(); ++i) {
+    auto& publisher = m_publishers[i];
     if (!register_publisher(&publisher)) {
       return false;
     }
+    if (m_topics.find(publisher.topic_priority()) == m_topics.end()) {
+      m_topics[publisher.topic_priority()] = TopicInfo{};
+    }
+    m_topics[publisher.topic_priority()].publishers.push_back(i);
   }
 
-  for (auto& subscriber : m_subscribers) {
+  for (unsigned i = 0; i < m_subscribers.size(); ++i) {
+    auto& subscriber = m_subscribers[i];
     if (!register_subscriber(&subscriber)) {
       return false;
     }
+    if (m_topics.find(subscriber.topic_priority()) == m_topics.end()) {
+      m_topics[subscriber.topic_priority()] = TopicInfo{};
+    }
+    m_topics[subscriber.topic_priority()].subscribers.push_back(i);
   }
 
   m_os->logger().info() << "Node '" << m_name << "' connected with ID " << m_node_id << ".\n";
@@ -44,21 +54,19 @@ bool Node::connect() {
 
 Publisher* Node::create_publisher(std::string p_topic_name, std::string p_type_name, MessageSize p_message_size,
                                   TopicPriority p_topic_priority) {
-  m_publishers.emplace_back(std::move(p_topic_name), std::move(p_type_name), p_message_size, p_topic_priority);
-  return &*m_publishers.end();
+  m_publishers.emplace_back(std::move(p_topic_name), std::move(p_type_name), p_message_size, p_topic_priority,
+                            bp_header_size + bp_data_header_size);
+  return &m_publishers.back();
 }
 
 Subscriber* Node::create_subscriber(std::string p_topic_name, std::string p_type_name, MessageSize p_message_size,
-                                    SubscriberCallback p_callback, void* p_callback_user_data) {
-  m_subscribers.emplace_back(std::move(p_topic_name), std::move(p_type_name), p_message_size, std::move(p_callback),
-                             p_callback_user_data);
-  return &*m_subscribers.end();
+                                    SubscriberCallback p_callback, void* p_callback_user_data,
+                                    TopicPriority p_topic_priority) {
+  m_subscribers.emplace_back(std::move(p_topic_name), std::move(p_type_name), p_message_size,
+                             bp_header_size + bp_data_header_size, std::move(p_callback), p_callback_user_data,
+                             p_topic_priority);
+  return &m_subscribers.back();
 }
-
-// TODO(ahb)
-// Node iterates [1] through m_publishers and m_subscribers and performs actions (send / receive+callback) based on
-// topic priority.
-// [1] single thread with priorities as data or multiple threads with different thread priorities?
 
 bool Node::register_node() {
   auto request = R"(
@@ -186,11 +194,12 @@ bool Node::register_subscriber(Subscriber* p_subscriber) {
   {  // register topic
     TopicId topic_id{};
     TopicPriority actual_topic_priority{};
-    if (!register_topic(p_subscriber->topic_name(), p_subscriber->message_type_id(), dontcare_topic_priority, &topic_id,
-                        &actual_topic_priority)) {
+    if (!register_topic(p_subscriber->topic_name(), p_subscriber->message_type_id(), p_subscriber->topic_priority(),
+                        &topic_id, &actual_topic_priority)) {
       return false;
     }
     p_subscriber->set_topic_id(topic_id);
+    p_subscriber->set_topic_priority(actual_topic_priority);
   }
 
   {  // add subscriber
@@ -218,6 +227,65 @@ bool Node::register_subscriber(Subscriber* p_subscriber) {
   return true;
 }
 
+bool Node::spin() {
+  SpinOnceResult result{};
+  do {
+    result = spin_once();
+    // TODO(ahb)
+    // SpinOnceResult::NoWork leads to busy waiting. Implement something better, e.g. using std::condition_variable.
+  } while (result == SpinOnceResult::Success || result == SpinOnceResult::NoWork);
+  return false;
+}
+
+bool Node::spin_while_work() {
+  SpinOnceResult result{};
+  do {
+    result = spin_once();
+  } while (result == SpinOnceResult::Success);
+  return (result == SpinOnceResult::NoWork);
+}
+
+Node::SpinOnceResult Node::spin_once() {
+  bool work_done{false};
+  // process incoming broker messages
+  // TODO(ahb)
+  // non-blocking!
+
+  // process subscriber callbacks and outgoing publisher messages
+  for (auto& topic_info : m_topics) {  // iterated in priority order
+    for (auto subscriber_index : topic_info.second.subscribers) {
+      auto& subscriber = m_subscribers[subscriber_index];
+      if (subscriber.messages_queued() != 0) {
+        m_os->logger().debug() << "subscriber " << subscriber_index << " on topic '" << subscriber.topic_name()
+                               << "' with priority " << static_cast<int>(topic_info.first) << " has "
+                               << subscriber.messages_queued() << " incoming messages queued\n";
+        // TODO(ahb)
+        m_os->logger().error() << "functionality not yet implemented in function " << __FUNCTION__ << "\n";  // NOLINT
+        return SpinOnceResult::Error;
+      }
+    }
+    for (auto publisher_index : topic_info.second.publishers) {
+      auto& publisher = m_publishers[publisher_index];
+      if (publisher.messages_queued() != 0) {
+        m_os->logger().debug() << "publisher " << publisher_index << " on topic '" << publisher.topic_name()
+                               << "' with priority " << static_cast<int>(topic_info.first) << " has "
+                               << publisher.messages_queued() << " outgoing messages queued\n";
+        if (!send_data(publisher.topic_id(), publisher.message_type_id(), publisher.get_message(),
+                       publisher.packet_size())) {
+          m_os->logger().error() << "Sending data failed.\n";
+          return SpinOnceResult::Error;
+        }
+        publisher.pop_message();
+        work_done = true;
+      }
+    }
+  }
+  if (!work_done) {
+    return SpinOnceResult::NoWork;
+  }
+  return SpinOnceResult::Success;
+}
+
 json Node::broker_rpc_blocking(const json& p_request) {
   if (!send_control(p_request)) {
     m_os->logger().error() << "send_control(" << p_request << ") failed.\n";
@@ -227,7 +295,7 @@ json Node::broker_rpc_blocking(const json& p_request) {
   // TODO(ahb) refactor START vvv
   const size_t buffer_size = 64 * 1024;  // 64K is maximum UDP datagram size
   std::array<unsigned char, buffer_size> buffer{};
-  ssize_t bytes_received_signed = m_network->recvfrom(buffer.data(), buffer_size, nullptr);
+  ssize_t bytes_received_signed = m_network->recvfrom(buffer.data(), buffer_size, true, nullptr);
   m_os->logger().debug() << "received " << bytes_received_signed << " bytes\n";
   if (bytes_received_signed < 0) {
     m_os->logger().error() << "recvfrom() failed. This should not happen!\n";
@@ -268,6 +336,12 @@ bool Node::send_control(const json& p_request) {
   bp_control_json_to_packet_buffer(p_request, next_bp_counter(), &buffer);
   m_os->logger().debug() << "send_control(" << p_request.dump() << ") " << buffer.size() << " bytes\n";
   return m_network->sendto(m_broker_address, buffer.data(), buffer.size());
+}
+
+bool Node::send_data(TopicId p_topic_id, MessageTypeId p_message_type_id, void* p_buffer, size_t p_buffer_size) {
+  bp_fill_data_header(next_bp_counter(), p_topic_id, p_message_type_id,
+                      p_buffer_size - (bp_header_size + bp_data_header_size), p_buffer);
+  return m_network->sendto(m_broker_address, p_buffer, p_buffer_size);
 }
 
 BpCounter Node::next_bp_counter() {

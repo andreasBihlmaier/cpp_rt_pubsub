@@ -18,8 +18,8 @@ class LinuxNetwork final : public Network {
   bool listen() override;
   bool accept() override;
   bool connect(const std::string& p_address) override;
-  bool sendto(const std::string& p_address, void* p_data, size_t p_size) override;
-  ssize_t recvfrom(void* p_buffer, size_t p_buffer_size, std::string* p_sender_address) override;
+  bool sendto(const std::string& p_address, const void* p_data, size_t p_size) override;
+  ssize_t recvfrom(void* p_buffer, size_t p_buffer_size, bool block, std::string* p_sender_address) override;
   bool close() override;
 
  private:

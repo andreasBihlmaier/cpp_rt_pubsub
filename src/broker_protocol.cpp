@@ -18,6 +18,19 @@ void bp_control_json_to_packet_buffer(const json& p_control_json, BpCounter p_co
   std::memcpy(&(*p_buffer)[bp_header_size + bp_control_header_size], &control_string[0], control_string.size());
 }
 
+void bp_fill_data_header(BpCounter p_counter, TopicId p_topic_id, MessageTypeId p_message_type_id,
+                         uint32_t p_message_size, void* p_buffer) {
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  auto* bp_header = reinterpret_cast<BpHeader*>(p_buffer);
+  bp_header->type = BpType::Data;
+  bp_header->counter = htonl(p_counter);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  auto* bp_data_header = reinterpret_cast<BpDataHeader*>(reinterpret_cast<unsigned char*>(p_buffer) + bp_header_size);
+  bp_data_header->topic_id = htonl(p_topic_id);
+  bp_data_header->message_type_id = htonl(p_message_type_id);
+  bp_data_header->size = htonl(p_message_size);
+}
+
 BpType decode_packet_buffer(const unsigned char* p_packet_buffer, size_t p_packet_size, BpHeader* p_header,
                             BpControlHeader* p_control_header, BpDataHeader* p_data_header, json* p_control_json,
                             Logger* p_logger) {
@@ -54,13 +67,23 @@ BpType decode_packet_buffer(const unsigned char* p_packet_buffer, size_t p_packe
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         json::parse(p_packet_buffer + bp_header_size + bp_control_header_size, p_packet_buffer + json_end_offset);
   } else if (p_header->type == BpType::Data) {
-    // TODO(ahb)
-    // remember to use nto* on BpDataHeader fields!
-    (void)p_data_header;
-    if (p_logger != nullptr) {
-      p_logger->error() << "functionality not yet implemented in function " << __FUNCTION__ << "\n";  // NOLINT
+    {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast, cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      const auto* const data_header = reinterpret_cast<const BpDataHeader*>(p_packet_buffer + bp_header_size);
+      p_data_header->topic_id = ntohl(data_header->topic_id);
+      p_data_header->message_type_id = ntohl(data_header->message_type_id);
+      p_data_header->size = ntohl(data_header->size);
     }
-    return BpType::Invalid;
+    uint32_t data_end_offset = bp_header_size + bp_control_header_size + p_data_header->size;
+    if (data_end_offset > p_packet_size) {
+      if (p_logger != nullptr) {
+        p_logger->error() << "BpControlHeader::size (= " << p_control_header->size
+                          << ") is wrong. End of data would be at " << data_end_offset
+                          << " which is beyond packet size (= " << p_packet_size
+                          << "). This indicates corrupted packet data!\n";
+      }
+      return BpType::Invalid;
+    }
   }
 
   return p_header->type;

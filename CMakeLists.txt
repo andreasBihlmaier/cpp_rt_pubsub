@@ -16,7 +16,7 @@ endif (NOT CMAKE_BUILD_TYPE)
 set(CMAKE_CXX_CLANG_TIDY
   clang-tidy;
   -header-filter=include/crps;
-  -checks=*,-modernize-use-trailing-return-type,-fuchsia-default-arguments-calls,-fuchsia-default-arguments-declarations;
+  -checks=*,-modernize-use-trailing-return-type,-fuchsia-default-arguments-calls,-fuchsia-default-arguments-declarations,-fuchsia-overloaded-operator;
   -warnings-as-errors=*;)
 
 set(CMAKE_CXX_CPPCHECK
@@ -33,8 +33,9 @@ include_directories(
 #)
 
 add_library(crps_common SHARED
-  src/os.cpp
   src/broker_protocol.cpp
+  src/message_queue.cpp
+  src/os.cpp
 )
 #target_link_libraries(crps_common
 #)

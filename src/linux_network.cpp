@@ -98,7 +98,7 @@ bool LinuxNetwork::connect(const std::string& p_address) {
   return true;
 }
 
-bool LinuxNetwork::sendto(const std::string& p_address, void* p_data, size_t p_size) {
+bool LinuxNetwork::sendto(const std::string& p_address, const void* p_data, size_t p_size) {
   sockaddr_in receiver_sockaddr{};
   if (!to_sockaddr(p_address, &receiver_sockaddr)) {
     m_os->logger().error() << "to_sockaddr_in() failed: " << std::strerror(errno) << "\n";
@@ -114,7 +114,8 @@ bool LinuxNetwork::sendto(const std::string& p_address, void* p_data, size_t p_s
   return static_cast<size_t>(bytes_written) == p_size;
 }
 
-ssize_t LinuxNetwork::recvfrom(void* p_buffer, size_t p_buffer_size, std::string* p_sender_address) {
+ssize_t LinuxNetwork::recvfrom(void* p_buffer, size_t p_buffer_size, bool block, std::string* p_sender_address) {
+  (void)block;  // TODO(ahb) use parameter and implement non-blocking
   sockaddr_in sender_sockaddr{};
   socklen_t sender_sockaddr_size = sizeof(sender_sockaddr);
   ssize_t bytes_received =

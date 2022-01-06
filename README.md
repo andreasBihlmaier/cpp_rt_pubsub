@@ -25,20 +25,30 @@ Limitations / Potential improvements
 * Single broker (instead of one broker per host to keep communication between nodes on same host local)
 * IPv4 only
 * No DNS support, only IP addresses
+* No support for "latch" / "transient local durability" topics (i.e. deliver latest published message to subscribers that subscribe to topic at later point in time)
 
 Notes
 -----
 * While the target platform is Linux, the code should be easy to port to other POSIX platforms by implementing interfaces in `os.h` and `network.h`
 * To ease detailed analysis, this project intentionally does **not** make use of external libraries, e.g. [Boost.Asio](http://boost.org/libs/asio/)
+  * The only exception being [nlohmann/json](https://github.com/nlohmann/json) contained in this repository under [third_party/nlohmann_json](third_party/nlohmann_json)
 
 TODOs
 -----
 * All `TODO`s in the code ;)
 * Tests
 * Documentation
+* Implement Node (and hence Publisher and Subscriber) unregister
+* Sort source file content (e.g. method order).
+* General cleanup
 * Implement `Network::Protocol::TCP`
 * Handle wrap around of `BpHeader::counter`
 * Make implementation robust against corrupted / not well-formed messages, esp. `BpType::Control`.
 * Distinct `error_code`s in Control JSON
 * Accept dependency on [Boost.Program_options](https://www.boost.org/libs/program_options) and cleanup `*_main.cpp`(?)
 * Isolate `BpType::Data` processing from `BpType::Control` processing in broker.
+* Increment and monitor `BpHeader::counter` also in direction broker->node (not just node->broker); Counter should be unique per node
+* Add node liveliness monitoring. Either continuous (heartbeat from node to broker) or sporadic (broker polling node on demand, e.g. when node with same name tries to register)
+* Add a Broker->Node API?
+* Add a Node->(Broker->)Node API?
+* No-subscriber-optimization (i.e. don't publish data to broker that has no subscribers (unless topic is "latching"))
