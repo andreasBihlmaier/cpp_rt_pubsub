@@ -1,6 +1,14 @@
 #ifndef CRPS_LOGGER_H
 #define CRPS_LOGGER_H
 
+#ifdef CRPS_LOGGER_NO_DEBUG
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+#define CRPS_LOGGER_DEBUG(x, y)
+#else
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
+#define CRPS_LOGGER_DEBUG(x, y) x->logger().debug() y
+#endif  // CRPS_LOGGER_NO_DEBUG
+
 #include <functional>
 #include <sstream>
 
@@ -18,14 +26,18 @@ class Logger {
     Fatal = 5,
   };
 
-  explicit Logger(WriteLogFunction p_write_log) : m_write_log(std::move(p_write_log)) {
+  static LogLevel global_log_level;
+
+  explicit Logger(WriteLogFunction p_write_log) : m_log_level(LogLevel::Debug), m_write_log(std::move(p_write_log)) {
   }
   Logger(const Logger&) = delete;
   Logger(Logger&&) = delete;
   Logger& operator=(const Logger&) = delete;
   Logger& operator=(Logger&&) = delete;
   ~Logger() {
-    m_write_log(m_stream);
+    if (m_log_level >= global_log_level) {
+      m_write_log(m_stream);
+    }
   }
 
   std::ostringstream& log(LogLevel p_level);
@@ -46,6 +58,7 @@ class Logger {
   }
 
  private:
+  LogLevel m_log_level;
   std::ostringstream m_stream;
   WriteLogFunction m_write_log;
 };

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(cpp_rt_pubsub)
 
+option(CRPS_LOGGER_NO_DEBUG "Remove crps::Logger::LogLevel::Debug code (must be wrapped in CRPS_LOGGER_DEBUG macro)" OFF)
+
 set(CMAKE_C_FLAGS "-Wall -Wextra -Werror")
 set(CMAKE_C_STANDARD 99)
 
@@ -11,6 +13,10 @@ if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the type of build." FORCE)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif (NOT CMAKE_BUILD_TYPE)
+
+if (CRPS_LOGGER_NO_DEBUG)
+ add_definitions(-DCRPS_LOGGER_NO_DEBUG)
+endif()
 
 
 set(CMAKE_CXX_CLANG_TIDY
@@ -34,6 +40,7 @@ include_directories(
 
 add_library(crps_common SHARED
   src/broker_protocol.cpp
+  src/logger.cpp
   src/message_queue.cpp
   src/os.cpp
 )

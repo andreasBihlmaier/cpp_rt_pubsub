@@ -1,20 +1,29 @@
+#include <iostream>
 #include <memory>
 
 #include "crps/linux.h"
 #include "crps/node.h"
 
-void test_callback(void* p_message, crps::MessageSize p_message_size, void* /* UNUSED */) {
+void test_callback(void* p_message, crps::MessageSize /* UNUSED */, void* /* UNUSED */) {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   auto* value = reinterpret_cast<uint64_t*>(p_message);
-  (void)value;
-  (void)p_message_size;
-
-  // TODO(ahb)
+  std::cout << "Got message: " << *value << "\n";
 }
 
 int main(int argc, char* argv[]) {
-  (void)argc;
-  (void)argv;
+  std::string node_name{"test_sub"};
+
+  {  // TODO(ahb) bad implementation
+    int i{1};
+    while (i < argc) {
+      if (std::string(argv[i]) == "--node-name") {  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        node_name = argv[i + 1];                    // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        i += 2;
+      }
+    }
+  }
+
+  // crps::Logger::global_log_level = crps::Logger::LogLevel::Info;
 
   const crps::MessageSize message_size = sizeof(uint64_t);
   const crps::TopicPriority topic_priority = 1;
@@ -22,7 +31,7 @@ int main(int argc, char* argv[]) {
   auto os = std::make_unique<crps::LinuxOS>(true);
   auto network = std::make_unique<crps::LinuxNetwork>(os.get());
 
-  auto node = std::make_unique<crps::Node>("test_sub", "127.0.0.1", os.get(), network.get());
+  auto node = std::make_unique<crps::Node>(node_name, "127.0.0.1", os.get(), network.get());
   auto* subscriber =
       node->create_subscriber("test_topic", "test_type", message_size, test_callback, nullptr, topic_priority);
   if (!node->connect()) {

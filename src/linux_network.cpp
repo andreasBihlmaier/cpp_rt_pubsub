@@ -115,13 +115,22 @@ bool LinuxNetwork::sendto(const std::string& p_address, const void* p_data, size
 }
 
 ssize_t LinuxNetwork::recvfrom(void* p_buffer, size_t p_buffer_size, bool block, std::string* p_sender_address) {
-  (void)block;  // TODO(ahb) use parameter and implement non-blocking
+  int flags{0};
+  if (!block) {
+    flags = MSG_DONTWAIT;
+  }
   sockaddr_in sender_sockaddr{};
   socklen_t sender_sockaddr_size = sizeof(sender_sockaddr);
   ssize_t bytes_received =
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      ::recvfrom(m_socket, p_buffer, p_buffer_size, 0, reinterpret_cast<sockaddr*>(&sender_sockaddr),
+      ::recvfrom(m_socket, p_buffer, p_buffer_size, flags, reinterpret_cast<sockaddr*>(&sender_sockaddr),
                  &sender_sockaddr_size);
+  if (bytes_received < 0) {
+    if (block || (errno != EAGAIN && errno != EWOULDBLOCK)) {
+      m_os->logger().error() << "recvfrom() failed: " << std::strerror(errno) << "\n";
+      return -1;
+    }
+  }
   if (p_sender_address != nullptr) {
     if (!to_address(sender_sockaddr, p_sender_address)) {
       return -1;
@@ -151,7 +160,7 @@ bool LinuxNetwork::to_sockaddr(const std::string& p_address, sockaddr_in* p_sock
     new_sockaddr.sin_family = protocol_family;
     new_sockaddr.sin_port = htons(port);
     m_address_to_sockaddr[p_address] = new_sockaddr;
-    m_os->logger().debug() << "Adding " << p_address << " to m_address_to_sockaddr.\n";
+    CRPS_LOGGER_DEBUG(m_os, << "Adding " << p_address << " to m_address_to_sockaddr.\n");
   }
   *p_sockaddr = m_address_to_sockaddr[p_address];
 
@@ -168,7 +177,7 @@ bool LinuxNetwork::to_address(const sockaddr_in& p_sockaddr, std::string* p_addr
     }
     m_sockaddr_to_address[sockaddr_key] =
         std::string(address_buffer.data()) + ":" + std::to_string(ntohs(p_sockaddr.sin_port));
-    m_os->logger().debug() << "Adding " << m_sockaddr_to_address[sockaddr_key] << " to m_sockaddr_to_address.\n";
+    CRPS_LOGGER_DEBUG(m_os, << "Adding " << m_sockaddr_to_address[sockaddr_key] << " to m_sockaddr_to_address.\n");
   }
   *p_address = m_sockaddr_to_address[sockaddr_key];
   return true;

@@ -43,7 +43,7 @@ void Broker::spin() {
   for (;;) {
     std::string client;
     ssize_t bytes_received_signed = m_network->recvfrom(buffer.data(), buffer_size, true, &client);
-    m_os->logger().debug() << "received " << bytes_received_signed << " bytes from " << client << "\n";
+    CRPS_LOGGER_DEBUG(m_os, << "received " << bytes_received_signed << " bytes from " << client << "\n");
     if (bytes_received_signed < 0) {
       m_os->logger().error() << "recvfrom() failed. This should not happen! Continuing.\n";
       continue;
@@ -75,9 +75,9 @@ void Broker::spin() {
       }
     } else if (bp_type == BpType::Data) {
       TopicId topic_id = bp_data_header.topic_id;
-      m_os->logger().debug() << "Received data packet for topic " << topic_id << " ('" << m_topics[topic_id].name
-                             << "') with message type " << bp_data_header.message_type_id << " from " << client
-                             << ".\n";
+      CRPS_LOGGER_DEBUG(m_os, << "Received data packet for topic " << topic_id << " ('" << m_topics[topic_id].name
+                              << "') with message type " << bp_data_header.message_type_id << " from " << client
+                              << ".\n");
       if (topic_id >= m_topics.size()) {
         m_os->logger().error() << "Received data packet with invalid topic ID " << topic_id << " from " << client
                                << ". Ignoring packet and continuing.\n";
@@ -297,13 +297,13 @@ bool Broker::add_subscriber(BpNodeId p_node_id, TopicId p_topic_id, MessageTypeI
 bool Broker::send_control_response(const std::string& p_address, const json& p_response) {
   std::vector<unsigned char> buffer;
   bp_control_json_to_packet_buffer(p_response, m_client_counters[p_address], &buffer);
-  m_os->logger().debug() << "send_control_response(" << p_address << ", " << p_response.dump() << ") " << buffer.size()
-                         << " bytes\n";
+  CRPS_LOGGER_DEBUG(m_os, << "send_control_response(" << p_address << ", " << p_response.dump() << ") " << buffer.size()
+                          << " bytes\n");
   return m_network->sendto(p_address, buffer.data(), buffer.size());
 }
 
 bool Broker::send_data(const std::string& p_address, const unsigned char* p_buffer, size_t p_packet_size) {
-  m_os->logger().debug() << "send_data(" << p_address << ") " << p_packet_size << " bytes\n";
+  CRPS_LOGGER_DEBUG(m_os, << "send_data(" << p_address << ") " << p_packet_size << " bytes\n");
   return m_network->sendto(p_address, p_buffer, p_packet_size);
 }
 

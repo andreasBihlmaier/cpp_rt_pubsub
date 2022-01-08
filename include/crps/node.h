@@ -5,6 +5,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <unordered_map>
 
 #include "crps/broker_protocol.h"
 #include "crps/defaults.h"
@@ -43,8 +44,8 @@ class Node {
 
  private:
   struct TopicInfo {
-    std::list<unsigned> publishers;
-    std::list<unsigned> subscribers;
+    std::list<Publisher*> publishers;
+    std::list<Subscriber*> subscribers;
   };
 
   struct TopicsComparator {
@@ -52,6 +53,8 @@ class Node {
       return lhs > rhs;
     }
   };
+
+  static const size_t buffer_size = 64 * 1024;  // 64K is maximum UDP datagram size
 
   bool register_node();
   bool register_message_type(const std::string& p_message_type_name, MessageSize p_message_size,
@@ -65,6 +68,9 @@ class Node {
   bool send_data(TopicId p_topic_id, MessageTypeId p_message_type_id, void* p_buffer, size_t p_buffer_size);
   [[nodiscard]] BpCounter next_bp_counter();
   [[nodiscard]] uint32_t rpc_id() const;
+  ssize_t receive_message(bool p_block, BpType* p_bp_type, BpHeader* p_bp_header, BpControlHeader* p_bp_control_header,
+                          BpDataHeader* p_bp_data_header, json* p_control_json);
+  int process_incoming_message();  // return: -1 on error, 0 if no message processed, 1 if a message was processed
 
   std::string m_name;
   std::string m_broker_address;
@@ -74,8 +80,10 @@ class Node {
   BpNodeId m_node_id = 0;
   std::vector<Publisher> m_publishers;
   std::vector<Subscriber> m_subscribers;
-  std::map<TopicPriority, TopicInfo, TopicsComparator> m_topics;  // sorted by highest to lowest priority
+  std::unordered_map<TopicId, TopicInfo> m_topics;
+  std::map<TopicPriority, TopicInfo, TopicsComparator> m_topics_by_prio;  // sorted highest to lowest priority
   BpCounter m_bp_counter = 0;
+  std::array<unsigned char, buffer_size> m_buffer{};
 };
 
 }  // namespace crps

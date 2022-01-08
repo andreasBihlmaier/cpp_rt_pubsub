@@ -5,8 +5,17 @@
 #include "crps/node.h"
 
 int main(int argc, char* argv[]) {
-  (void)argc;
-  (void)argv;
+  std::string node_name{"test_pub"};
+
+  {  // TODO(ahb) bad implementation
+    int i{1};
+    while (i < argc) {
+      if (std::string(argv[i]) == "--node-name") {  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        node_name = argv[i + 1];                    // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        i += 2;
+      }
+    }
+  }
 
   uint64_t value{0};
   const crps::MessageSize message_size = sizeof(value);
@@ -15,7 +24,7 @@ int main(int argc, char* argv[]) {
   auto os = std::make_unique<crps::LinuxOS>(true);
   auto network = std::make_unique<crps::LinuxNetwork>(os.get());
 
-  auto node = std::make_unique<crps::Node>("test_pub", "127.0.0.1", os.get(), network.get());
+  auto node = std::make_unique<crps::Node>(node_name, "127.0.0.1", os.get(), network.get());
   auto* publisher = node->create_publisher("test_topic", "test_type", message_size, topic_priority);
   if (!node->connect()) {
     os->logger().error() << "Publisher failed to connect. Exiting.\n";
