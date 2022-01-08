@@ -167,7 +167,7 @@ json Broker::process_control_request(const std::string& p_client_address, const 
       response["topic_priority"] = actual_topic_priority;
     } else if (p_request["topic"]["action"] == "add_publisher") {
       if (!add_publisher(p_request["topic"]["params"]["node_id"], p_request["topic"]["params"]["topic_id"],
-                         p_request["topic"]["params"]["topic_id"])) {
+                         p_request["topic"]["params"]["message_type_id"])) {
         return rpc_failure_response(p_request["rpc_id"], 0, "Failed to add publisher");
       }
       response.clear();
@@ -175,7 +175,7 @@ json Broker::process_control_request(const std::string& p_client_address, const 
       response["success"] = true;
     } else if (p_request["topic"]["action"] == "add_subscriber") {
       if (!add_subscriber(p_request["topic"]["params"]["node_id"], p_request["topic"]["params"]["topic_id"],
-                          p_request["topic"]["params"]["topic_id"])) {
+                          p_request["topic"]["params"]["message_type_id"])) {
         return rpc_failure_response(p_request["rpc_id"], 0, "Failed to add subscriber");
       }
       response.clear();

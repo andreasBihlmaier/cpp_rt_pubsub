@@ -35,10 +35,14 @@ Notes
 
 TODOs
 -----
+* Real-time on Linux
+  * Thread scheduler class and thread priorities
+  * Memory management (mlockall, mallopt, pre-load stack, ...)
 * All `TODO`s in the code ;)
 * Tests
 * Documentation
 * Implement Node (and hence Publisher and Subscriber) unregister
+* Implement API to query Broker, e.g. about nodes, topics, message types, publishers, subscribers, etc.
 * Sort source file content (e.g. method order).
 * General cleanup
 * Implement `Network::Protocol::TCP`

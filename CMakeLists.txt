@@ -73,12 +73,16 @@ target_link_libraries(crps_node
   crps_linux
 )
 
+add_library(crps_demo SHARED
+  src/demo/parse_options.cpp
+)
 
 add_executable(broker
   src/broker_main.cpp
 )
 target_link_libraries(broker
   crps_broker
+  crps_demo
 )
 
 add_executable(demo_pub
@@ -86,6 +90,7 @@ add_executable(demo_pub
 )
 target_link_libraries(demo_pub
   crps_node
+  crps_demo
 )
 
 add_executable(demo_sub
@@ -93,6 +98,7 @@ add_executable(demo_sub
 )
 target_link_libraries(demo_sub
   crps_node
+  crps_demo
 )
 
 

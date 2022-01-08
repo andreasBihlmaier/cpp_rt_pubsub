@@ -3,29 +3,40 @@
 
 #include "crps/linux.h"
 #include "crps/node.h"
+#include "demo/parse_options.h"
 
 int main(int argc, char* argv[]) {
   std::string node_name{"test_pub"};
+  std::string topic_name{"test_topic"};
+  std::string message_type_name{"test_type"};
+  crps::TopicPriority topic_priority{1};
+  std::string listen_ip{"127.0.0.1"};
 
-  {  // TODO(ahb) bad implementation
-    int i{1};
-    while (i < argc) {
-      if (std::string(argv[i]) == "--node-name") {  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        node_name = argv[i + 1];                    // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        i += 2;
-      }
-    }
+  auto options = parse_options(argc, argv);
+  if (options.find("node_name") != options.end()) {
+    node_name = options["node_name"];
+  }
+  if (options.find("topic_name") != options.end()) {
+    topic_name = options["topic_name"];
+  }
+  if (options.find("message_type_name") != options.end()) {
+    message_type_name = options["message_type_name"];
+  }
+  if (options.find("topic_priority") != options.end()) {
+    topic_priority = std::stoi(options["topic_priority"]);
+  }
+  if (options.find("listen_ip") != options.end()) {
+    listen_ip = options["listen_ip"];
   }
 
   uint64_t value{0};
   const crps::MessageSize message_size = sizeof(value);
-  const crps::TopicPriority topic_priority = 1;
 
   auto os = std::make_unique<crps::LinuxOS>(true);
   auto network = std::make_unique<crps::LinuxNetwork>(os.get());
 
-  auto node = std::make_unique<crps::Node>(node_name, "127.0.0.1", os.get(), network.get());
-  auto* publisher = node->create_publisher("test_topic", "test_type", message_size, topic_priority);
+  auto node = std::make_unique<crps::Node>(node_name, listen_ip, os.get(), network.get());
+  auto* publisher = node->create_publisher(topic_name, message_type_name, message_size, topic_priority);
   if (!node->connect()) {
     os->logger().error() << "Publisher failed to connect. Exiting.\n";
     return 1;
