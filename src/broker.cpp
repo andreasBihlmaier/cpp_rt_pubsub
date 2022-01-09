@@ -6,8 +6,8 @@
 
 namespace crps {
 
-Broker::Broker(std::string p_listen_address, OS* p_os, Network* p_network, Network::Protocol p_protocol, int16_t p_port)
-    : m_listen_address(std::move(p_listen_address) + ":" + std::to_string(p_port)),
+Broker::Broker(std::string p_listen_ip, OS* p_os, Network* p_network, Network::Protocol p_protocol, int16_t p_port)
+    : m_listen_address(std::move(p_listen_ip) + ":" + std::to_string(p_port)),
       m_os(p_os),
       m_network(p_network),
       m_protocol(p_protocol) {
@@ -26,6 +26,7 @@ bool Broker::start() {
     return false;
   }
 
+  m_os->logger().info() << "Broker started and listening on " << m_listen_address << "\n";
   return true;
 }
 

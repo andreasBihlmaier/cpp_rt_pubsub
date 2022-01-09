@@ -69,10 +69,10 @@ class BenchmarkNode {
   static const size_t benchmark_header_size = sizeof(BenchmarkHeader);
   static const size_t histogram_size = 1000 * 600;  // 1000 Hz for 600 s (about 5 MB)
 
-  BenchmarkNode(std::string p_listen_ip, std::string p_node_name, std::string p_topic_name,
+  BenchmarkNode(std::string p_broker_ip, std::string p_node_name, std::string p_topic_name,
                 std::string p_message_type_name, crps::MessageSize p_message_size, crps::TopicPriority p_topic_priority,
                 std::string p_bench_node_type, unsigned p_publish_period_ms, crps::OS* p_os, crps::Network* p_network)
-      : m_listen_ip(std::move(p_listen_ip)),
+      : m_broker_ip(std::move(p_broker_ip)),
         m_node_name(std::move(p_node_name) + "_" + p_bench_node_type),
         m_topic_name(std::move(p_topic_name)),
         m_message_type_name(std::move(p_message_type_name)),
@@ -87,7 +87,7 @@ class BenchmarkNode {
   void print_results();
 
  private:
-  std::string m_listen_ip;
+  std::string m_broker_ip;
   std::string m_node_name;
   std::string m_topic_name;
   std::string m_message_type_name;
@@ -114,7 +114,7 @@ bool BenchmarkNode::run(unsigned p_publish_count) {
     return false;
   }
 
-  m_node = std::make_unique<crps::Node>(m_node_name, m_listen_ip, m_os, m_network);
+  m_node = std::make_unique<crps::Node>(m_node_name, m_broker_ip, m_os, m_network);
   if (m_bench_node_type == "generator") {
     m_publisher =
         m_node->create_publisher(m_topic_name + "_ping", m_message_type_name, m_message_size, m_topic_priority);
@@ -224,7 +224,7 @@ void BenchmarkNode::add_latency(crps::BpNodeId p_reflector_id, uint64_t p_latenc
 }
 
 void BenchmarkNode::print_results() {
-  json result{json::array()};
+  json result = json::array();
   for (auto& histogram : m_histograms) {
     json histogram_result;
     auto histogram_data = histogram.second.json_data();
@@ -238,7 +238,7 @@ void BenchmarkNode::print_results() {
 
 int main(int argc, char* argv[]) {  // NOLINT(bugprone-exception-escape)
   auto options = parse_options(argc, argv);
-  std::string listen_ip{option_or_default(options, "listen_ip", "127.0.0.1")};
+  std::string broker_ip{option_or_default(options, "broker_ip", "127.0.0.1")};
   std::string node_name{option_or_default(options, "node_name", "bench_node")};
   std::string topic_name{option_or_default(options, "topic_name", "bench_topic")};
   std::string message_type_name{option_or_default(options, "message_type_name", "bench_type")};
@@ -254,7 +254,7 @@ int main(int argc, char* argv[]) {  // NOLINT(bugprone-exception-escape)
   auto os = std::make_unique<crps::LinuxOS>(true);
   auto network = std::make_unique<crps::LinuxNetwork>(os.get());
 
-  auto benchmark_node{std::make_unique<BenchmarkNode>(listen_ip, node_name, topic_name, message_type_name, message_size,
+  auto benchmark_node{std::make_unique<BenchmarkNode>(broker_ip, node_name, topic_name, message_type_name, message_size,
                                                       topic_priority, bench_node_type, publish_period_ms, os.get(),
                                                       network.get())};
 

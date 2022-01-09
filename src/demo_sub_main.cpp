@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
   std::string message_type_name{option_or_default(options, "message_type_name", "test_type")};
   crps::TopicPriority topic_priority{
       static_cast<crps::TopicPriority>(std::stoi(option_or_default(options, "topic_priority", "1")))};
-  std::string listen_ip{option_or_default(options, "listen_ip", "127.0.0.1")};
+  std::string broker_ip{option_or_default(options, "broker_ip", "127.0.0.1")};
 
   // crps::Logger::global_log_level = crps::Logger::LogLevel::Info;
 
@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
   auto os = std::make_unique<crps::LinuxOS>(true);
   auto network = std::make_unique<crps::LinuxNetwork>(os.get());
 
-  auto node = std::make_unique<crps::Node>(node_name, listen_ip, os.get(), network.get());
+  auto node = std::make_unique<crps::Node>(node_name, broker_ip, os.get(), network.get());
   auto* subscriber =
       node->create_subscriber(topic_name, message_type_name, message_size, test_callback, nullptr, topic_priority);
   if (!node->connect()) {

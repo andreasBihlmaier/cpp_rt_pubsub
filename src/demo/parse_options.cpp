@@ -7,7 +7,7 @@ std::unordered_map<std::string, std::string> parse_options(int argc, char* argv[
   std::unordered_map<std::string, std::string> options;
   const size_t option_names_length{9};
   std::array<std::string, option_names_length> option_names{"node_name",         "topic_name",        "topic_priority",
-                                                            "message_type_name", "listen_ip",         "bench_node_type",
+                                                            "message_type_name", "broker_ip",         "bench_node_type",
                                                             "message_size",      "publish_period_ms", "publish_count"};
   int i{1};
   while (i < argc) {

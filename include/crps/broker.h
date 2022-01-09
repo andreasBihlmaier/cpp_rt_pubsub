@@ -18,7 +18,7 @@ using json = nlohmann::json;
 
 class Broker {
  public:
-  explicit Broker(std::string p_listen_address, OS* p_os, Network* p_network,
+  explicit Broker(std::string p_listen_ip, OS* p_os, Network* p_network,
                   Network::Protocol p_protocol = Network::Protocol::UDP, int16_t p_port = broker_default_port);
   bool start();
   void spin();
