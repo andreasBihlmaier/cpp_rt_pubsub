@@ -56,3 +56,4 @@ TODOs
 * Add a Broker->Node API?
 * Add a Node->(Broker->)Node API?
 * No-subscriber-optimization (i.e. don't publish data to broker that has no subscribers (unless topic is "latching"))
+* Add an example pub/sub that shows how to use CRPS with a proper (fixed sized) message serialization library (e.g. ROS2, FlatBuffers or Protocol Buffers) on top. Include a Publisher/Subscriber class, templated on the message type, that use `Publisher`/`Subscriber` internally, but hide all the raw buffer operations from the user.
