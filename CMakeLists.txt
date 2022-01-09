@@ -101,5 +101,13 @@ target_link_libraries(demo_sub
   crps_demo
 )
 
+add_executable(benchmark
+  src/benchmark_main.cpp
+)
+target_link_libraries(benchmark
+  crps_node
+  crps_demo
+)
+
 
 #TODO add_subdirectory(tests)

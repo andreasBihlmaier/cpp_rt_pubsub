@@ -5,9 +5,10 @@
 std::unordered_map<std::string, std::string> parse_options(int argc, char* argv[]) {  // NOLINT
   // TODO(ahb) bad implementation
   std::unordered_map<std::string, std::string> options;
-  const size_t option_names_length{5};
-  std::array<std::string, option_names_length> option_names{"node_name", "topic_name", "topic_priority",
-                                                            "message_type_name", "listen_ip"};
+  const size_t option_names_length{9};
+  std::array<std::string, option_names_length> option_names{"node_name",         "topic_name",        "topic_priority",
+                                                            "message_type_name", "listen_ip",         "bench_node_type",
+                                                            "message_size",      "publish_period_ms", "publish_count"};
   int i{1};
   while (i < argc) {
     bool option_recognized = false;
@@ -25,4 +26,12 @@ std::unordered_map<std::string, std::string> parse_options(int argc, char* argv[
     }
   }
   return options;
+}
+
+std::string option_or_default(const std::unordered_map<std::string, std::string>& p_options,
+                              const std::string& p_option_name, const std::string& p_default_value) {
+  if (p_options.find(p_option_name) != p_options.end()) {
+    return p_options.at(p_option_name);
+  }
+  return p_default_value;
 }

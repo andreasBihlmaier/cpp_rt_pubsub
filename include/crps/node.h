@@ -41,6 +41,9 @@ class Node {
   [[nodiscard]] std::string name() const {
     return m_name;
   }
+  [[nodiscard]] BpNodeId node_id() const {
+    return m_node_id;
+  }
 
  private:
   struct TopicInfo {

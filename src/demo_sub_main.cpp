@@ -12,28 +12,13 @@ void test_callback(void* p_message, crps::MessageSize /* UNUSED */, void* /* UNU
 }
 
 int main(int argc, char* argv[]) {
-  std::string node_name{"test_sub"};
-  std::string topic_name{"test_topic"};
-  std::string message_type_name{"test_type"};
-  crps::TopicPriority topic_priority{1};
-  std::string listen_ip{"127.0.0.1"};
-
   auto options = parse_options(argc, argv);
-  if (options.find("node_name") != options.end()) {
-    node_name = options["node_name"];
-  }
-  if (options.find("topic_name") != options.end()) {
-    topic_name = options["topic_name"];
-  }
-  if (options.find("message_type_name") != options.end()) {
-    message_type_name = options["message_type_name"];
-  }
-  if (options.find("topic_priority") != options.end()) {
-    topic_priority = std::stoi(options["topic_priority"]);
-  }
-  if (options.find("listen_ip") != options.end()) {
-    listen_ip = options["listen_ip"];
-  }
+  std::string node_name{option_or_default(options, "node_name", "test_sub")};
+  std::string topic_name{option_or_default(options, "topic_name", "test_topic")};
+  std::string message_type_name{option_or_default(options, "message_type_name", "test_type")};
+  crps::TopicPriority topic_priority{
+      static_cast<crps::TopicPriority>(std::stoi(option_or_default(options, "topic_priority", "1")))};
+  std::string listen_ip{option_or_default(options, "listen_ip", "127.0.0.1")};
 
   // crps::Logger::global_log_level = crps::Logger::LogLevel::Info;
 

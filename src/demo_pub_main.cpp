@@ -6,28 +6,14 @@
 #include "demo/parse_options.h"
 
 int main(int argc, char* argv[]) {
-  std::string node_name{"test_pub"};
-  std::string topic_name{"test_topic"};
-  std::string message_type_name{"test_type"};
-  crps::TopicPriority topic_priority{1};
-  std::string listen_ip{"127.0.0.1"};
-
   auto options = parse_options(argc, argv);
-  if (options.find("node_name") != options.end()) {
-    node_name = options["node_name"];
-  }
-  if (options.find("topic_name") != options.end()) {
-    topic_name = options["topic_name"];
-  }
-  if (options.find("message_type_name") != options.end()) {
-    message_type_name = options["message_type_name"];
-  }
-  if (options.find("topic_priority") != options.end()) {
-    topic_priority = std::stoi(options["topic_priority"]);
-  }
-  if (options.find("listen_ip") != options.end()) {
-    listen_ip = options["listen_ip"];
-  }
+  std::string node_name{option_or_default(options, "node_name", "test_pub")};
+  std::string topic_name{option_or_default(options, "topic_name", "test_topic")};
+  std::string message_type_name{option_or_default(options, "message_type_name", "test_type")};
+  crps::TopicPriority topic_priority{
+      static_cast<crps::TopicPriority>(std::stoi(option_or_default(options, "topic_priority", "1")))};
+  std::string listen_ip{option_or_default(options, "listen_ip", "127.0.0.1")};
+  unsigned publish_period_ms{static_cast<unsigned>(std::stoul(option_or_default(options, "publish_period_ms", "500")))};
 
   uint64_t value{0};
   const crps::MessageSize message_size = sizeof(value);
@@ -57,8 +43,7 @@ int main(int argc, char* argv[]) {
     }
     value += 1;
 
-    using namespace std::chrono_literals;
-    std::this_thread::sleep_for(500ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds(publish_period_ms));
   }
 
   return 0;
