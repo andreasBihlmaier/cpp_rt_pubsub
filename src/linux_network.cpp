@@ -154,7 +154,7 @@ bool LinuxNetwork::to_sockaddr(const std::string& p_address, sockaddr_in* p_sock
     std::string host = p_address.substr(0, address_delimiter);
     uint16_t port = std::stoi(p_address.substr(address_delimiter + 1));
 
-    if (inet_pton(protocol_family, host.c_str(), &new_sockaddr) != 1) {
+    if (inet_pton(protocol_family, host.c_str(), &new_sockaddr.sin_addr) != 1) {
       return false;
     }
     new_sockaddr.sin_family = protocol_family;
